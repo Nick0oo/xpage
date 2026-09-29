@@ -364,6 +364,7 @@ export default function Home() {
     try {
       const payload = await postJson<{ image: string; mediaType: string }>("/api/images", {
         brief: activeLanding.brief,
+        modelChoice: activeLanding.modelChoice,
         traceId: activeLanding.traceId,
       });
       if (

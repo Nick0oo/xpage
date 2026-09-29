@@ -61,6 +61,7 @@ export const landingRequestSchema = z.object({
 
 export const imageRequestSchema = z.object({
   brief: briefSchema,
+  modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
   traceId: z.string().uuid().optional(),
 });
 
