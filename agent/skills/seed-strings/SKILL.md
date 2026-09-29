@@ -13,6 +13,7 @@ Establece invariantes de marca antes de decidir secciones, copy o medios.
 3. Propón paleta por rol y valor, tipografía disponible sin cargar fuentes remotas y composición.
 4. Escribe de tres a cinco invariantes observables que se repitan en las secciones.
 5. Comprueba contraste, legibilidad y que el copy y los medios respeten las invariantes.
+6. Para dar carácter sin perder claridad, define una forma gráfica principal derivada de la oferta y aplícala con variaciones entre secciones; evita usar una misma fila de tarjetas como estructura automática.
 
 ## Entrega y verificación
 Completa `designDNA` (`brandMotif`, `palette`, `typography`, `composition`, `invariants`) y describe la decisión en `contributions`. Marca elecciones estéticas como propuesta, no como investigación de marca.

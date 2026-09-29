@@ -36,6 +36,26 @@ const emptyBrief: Brief = {
   density: "equilibrada",
 };
 
+function storedCreativeDirection(result: PromptResult) {
+  if (result.creativeDirection) return result.creativeDirection;
+  const plan = result.designPlan;
+  if (!plan) return null;
+  return {
+    id: plan.creativeDirection?.id ?? "integrated-plan",
+    title: plan.creativeDirection?.title ?? plan.concept,
+    concept: plan.concept,
+    firstScreen: plan.sections[0]?.headline ?? plan.concept,
+    narrative: plan.sections.map((section) => `${section.role}: ${section.purpose}`).join(" → "),
+    palette: plan.designDNA.palette.map((color) => `${color.role}: ${color.value}`).join(", "),
+    typography: plan.designDNA.typography,
+    motif: plan.designDNA.brandMotif,
+    mediaUse: plan.mediaSlots.map((slot) => `${slot.id}: ${slot.purpose}`).join("; ") || "Sin medios definidos",
+    rationale: plan.creativeDirection?.rationale ?? "Síntesis integrada de los métodos seleccionados.",
+    structuralDifference: plan.creativeDirection?.structuralDifference ?? ["Plan integrado de métodos", "Sin dirección creativa independiente"],
+    designPlan: plan,
+  };
+}
+
 type CreationStep = 1 | 2 | 3;
 
 type ApiResponse = {
@@ -86,6 +106,8 @@ export default function Home() {
   const [step, setStep] = useState<CreationStep>(1);
   const [view, setView] = useState<"create" | "preview">("create");
   const [activeLanding, setActiveLanding] = useState<ActiveLanding | null>(null);
+  const [studioActive, setStudioActive] = useState(false);
+  const [savedLandingLink, setSavedLandingLink] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [downloadError, setDownloadError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
@@ -186,7 +208,8 @@ export default function Home() {
         mediaAssets: landing.mediaAssets ?? [],
       });
       setModelChoice(landing.modelChoice);
-      setSaveMessage("Landing abierta desde la Biblioteca. Revisiones y medios vigentes recuperados del disco local.");
+      setStudioActive(false);
+      setSaveMessage("Landing guardada y lista. Activa Studio para editar secciones y medios.");
       setView("preview");
     }).catch((error: unknown) => {
       if (current) setFormError(error instanceof Error ? error.message : "No se pudo reabrir la landing.");
@@ -466,6 +489,18 @@ export default function Home() {
     const result = promptResults.find((item) => item.id === resultId);
     if (!result || result.status !== "ready" || !result.prompt.trim()) return;
 
+    setSavedLandingLink(null);
+    let previewWindow: Window | null = null;
+    try {
+      previewWindow = window.open("about:blank", "_blank");
+      if (previewWindow) {
+        previewWindow.opener = null;
+        previewWindow.document.title = "Preparando tu landing";
+        previewWindow.document.body.textContent = "Generando la página. Esta pestaña cambiará a la vista previa cuando esté lista.";
+      }
+    } catch {
+      previewWindow = null;
+    }
     setActiveResultId(resultId);
     setFormError("");
     try {
@@ -473,6 +508,7 @@ export default function Home() {
       const traceId = await createLandingTrace(result);
       const payload = await postJson<unknown>("/api/landings", {
         prompt: result.prompt,
+        explicitContentRequirements: result.designPlan?.explicitContentRequirements ?? [],
         modelChoice: result.modelChoice,
         traceId,
       });
@@ -490,21 +526,48 @@ export default function Home() {
         throw new Error("El brief cambió y ya no es válido. Revísalo antes de guardar.");
       }
 
+      const id = crypto.randomUUID();
+      await saveLanding({
+        id,
+        title: parsedCode.data.title,
+        brief: parsedBrief.data,
+        techniqueIds: result.techniqueIds,
+        prompt: result.prompt,
+        creativeDirection: storedCreativeDirection(result),
+        modelChoice: result.modelChoice,
+        html: parsedCode.data.html,
+        css: parsedCode.data.css,
+        js: parsedCode.data.js,
+        traceId: landingTraceId,
+        createdAt: new Date().toISOString(),
+      });
+      const landingUrl = `/?landingId=${encodeURIComponent(id)}`;
+      if (previewWindow && !previewWindow.closed) previewWindow.location.replace(landingUrl);
+      else setSavedLandingLink(landingUrl);
       setActiveLanding({
         code: parsedCode.data,
         brief: parsedBrief.data,
         techniqueIds: result.techniqueIds,
         prompt: result.prompt,
         traceId: landingTraceId,
-        savedId: null,
+        savedId: id,
         modelChoice: result.modelChoice,
         designPlan: result.designPlan ?? result.creativeDirection?.designPlan ?? null,
         creativeDirection: result.creativeDirection ?? null,
         mediaAssets: [],
       });
-      setSaveMessage("");
-      setView("preview");
+      setSaveMessage("Landing guardada. Activa Studio en la pestaña nueva para editar secciones.");
+      setStudioActive(false);
+      setView("create");
+      setActiveLanding(null);
+      if (previewWindow) setSavedLandingLink(null);
+      setPromptResults([]);
+      setMethodRuns([]);
+      setActiveResultId(null);
+      setStep(1);
+      setFormError("");
     } catch (error) {
+      if (previewWindow && !previewWindow.closed) previewWindow.close();
       setFormError(error instanceof Error ? error.message : "No se pudo construir la landing.");
     } finally {
       setActiveResultId(null);
@@ -569,7 +632,7 @@ export default function Home() {
         createdAt: new Date().toISOString(),
       });
       setActiveLanding((current) => (current ? { ...current, savedId: id } : current));
-      setSaveMessage("Guardada en la Biblioteca local.");
+      setSaveMessage("Guardada en Biblioteca. Activa Studio para editar secciones.");
     } catch (error) {
       setSaveMessage(
         error instanceof Error ? error.message : "No se pudo guardar. Libera espacio e inténtalo de nuevo.",
@@ -595,6 +658,10 @@ export default function Home() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
+            <Button type="button" variant="outline" size="sm" onClick={() => setStudioActive((active) => !active)} aria-label={studioActive ? "Volver a ver la landing" : "Activar Studio para editar secciones"}>
+              <span className="hidden sm:inline">{studioActive ? "Ver landing" : "Activar Studio · Editar"}</span>
+              <span className="sm:hidden">{studioActive ? "Vista" : "Editar"}</span>
+            </Button>
             <details className="relative">
               <summary
                 aria-label="Opciones de portada"
@@ -673,12 +740,16 @@ export default function Home() {
           </p>
         ) : null}
 
-        <SectionEditorWorkspace
-          landingId={activeLanding.savedId}
-          code={activeLanding.code}
-          modelChoice={activeLanding.modelChoice}
-          onApplied={(code) => setActiveLanding((current) => current ? { ...current, code } : current)}
-        />
+        {studioActive ? (
+          <SectionEditorWorkspace
+            landingId={activeLanding.savedId}
+            code={activeLanding.code}
+            modelChoice={activeLanding.modelChoice}
+            onApplied={(code) => setActiveLanding((current) => current ? { ...current, code } : current)}
+          />
+        ) : (
+          <iframe title={`Vista previa: ${activeLanding.code.title}`} srcDoc={buildPreviewDocument(activeLanding.code)} sandbox="allow-scripts" referrerPolicy="no-referrer" className="min-h-0 w-full flex-1 border-0 bg-white" />
+        )}
       </div>
     );
   }
@@ -706,6 +777,13 @@ export default function Home() {
             pasos hasta tu página
           </p>
         </section>
+
+        {savedLandingLink ? (
+          <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[0.04] p-4 text-sm">
+            <p>La landing se guardó. El navegador bloqueó la pestaña nueva; ábrela aquí y activa Studio para editarla.</p>
+            <Link href={savedLandingLink} target="_blank" rel="noreferrer" className="font-semibold text-primary underline underline-offset-4">Abrir landing y activar Studio</Link>
+          </div>
+        ) : null}
 
         <EveModelSelector value={modelChoice} onChange={changeModelChoice} />
 

@@ -112,6 +112,21 @@ export function PromptResults({
                     {result.designPlan ? (
                       <>
                         <p className="text-sm">{result.designPlan.concept}</p>
+                        {result.designPlan.explicitContentRequirements.length > 0 ? (
+                          <details className="rounded-lg border border-primary/20 bg-primary/[0.035] p-3">
+                            <summary className="cursor-pointer text-xs font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">{"Contenido obligatorio: "}{result.designPlan.explicitContentRequirements.reduce((total, item) => total + item.requiredItems.length, 0)}{" piezas · revisar"}</summary>
+                            <ul className="mt-2 space-y-3 text-xs leading-5">
+                              {result.designPlan.explicitContentRequirements.map((requirement) => (
+                                <li key={requirement.id}>
+                                  <p className="font-medium">{requirement.statement}</p>
+                                  <ol className="mt-1 list-inside list-decimal text-muted-foreground">
+                                    {requirement.requiredItems.map((item) => <li key={item}>{item}</li>)}
+                                  </ol>
+                                </li>
+                              ))}
+                            </ul>
+                          </details>
+                        ) : null}
                         <ol className="grid gap-2 sm:grid-cols-2">
                           {result.designPlan.sections.map((section) => (
                             <li key={section.id} className="rounded-md border border-border bg-background p-2.5">
@@ -127,7 +142,9 @@ export function PromptResults({
                             </li>
                           ))}
                         </ul>
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        <details className="rounded-lg border border-border bg-background p-3">
+                          <summary className="cursor-pointer text-xs font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">{"Ver aportes y tensiones de los m\u00e9todos"}</summary>
+                          <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           {result.designPlan.contributions.map((item) => (
                             <article key={`${item.techniqueId}-detail`} className="rounded-lg border border-border bg-background p-3">
                               <h3 className="text-xs font-semibold">{techniques.find(({ id }) => id === item.techniqueId)?.name}</h3>
@@ -136,7 +153,8 @@ export function PromptResults({
                               {item.tensions.length > 0 ? <p className="mt-1 text-xs leading-5 text-muted-foreground">Tensión: {item.tensions.join("; ")} {item.resolution ? `· Resolución: ${item.resolution}` : ""}</p> : null}
                             </article>
                           ))}
-                        </div>
+                          </div>
+                        </details>
                         {result.designPlan.creatorCritic ? (
                           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                             <p className="text-xs font-semibold">Revisión creador · crítico</p>

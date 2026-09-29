@@ -45,12 +45,16 @@ ${JSON.stringify(input.methodContributions, null, 2)}
 
 Devuelve un DesignPlan completo seg\u00fan el esquema. Trabaja primero una propuesta completa, eval\u00fala y revisa el resultado antes de responder. Si el m\u00e9todo creator-critic est\u00e1 seleccionado, rellena su propuesta, hallazgos y revisi\u00f3n expl\u00edcitos. Describe decisiones observables, nunca razonamiento privado.
 
+En explicitContentRequirements, registra cada entregable de contenido que el usuario pidió de forma medible o enumerable. Un pedido de 5 ejercicios requiere 5 ejercicios concretos, no solo la frase «hasta cinco»; si el brief establece un máximo, nunca lo excedas. Redacta contenido creativo original cuando sea parte del entregable; la prohibición de inventar hechos no prohíbe crear ejemplos, juegos o ejercicios solicitados. Asigna una sección y enumera allí los textos exactos que luego deben aparecer en HTML. Haz que section.copy y el prompt editable incluyan esos mismos textos; luego verifica que cada uno está representado. Deja la lista vacía si no hay un entregable explícito.
+
 Brief (fuente de hechos):
 ${briefText}
 Brief completo y controles elegidos:
 ${JSON.stringify(input.brief)}
 
 IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribuci\u00f3n debe identificar la t\u00e9cnica, versi\u00f3n de skill, decisi\u00f3n concreta, artefacto visible y estado. Registra tensiones reales y su resoluci\u00f3n. La cobertura de contribuciones debe coincidir exactamente con los m\u00e9todos seleccionados.
+
+REQUISITOS EXPL\u00cdCITOS DE CONTENIDO: detecta entregables comprobables del brief (por ejemplo, una cantidad de ejercicios, preguntas, pasos, recetas o elementos). Para cada uno completa explicitContentRequirements con el requisito, la secci\u00f3n destino, targetCount si el usuario pide una cantidad concreta y requiredItems con textos espec\u00edficos que deben aparecer. Si se piden cinco ejercicios o la oferta propone hasta cinco ejercicios para practicar, produce cinco ejercicios originales y útiles; no basta con mencionar la cifra en un titular. Respeta límites y nunca excedas el máximo. No conviertas supuestos en requisitos ni inventes hechos sobre el producto; crear ejercicios, ejemplos o recetas originales que el usuario pidió no es inventar un claim. Incluye cada requiredItem en el copy y prompt final de su secci\u00f3n. Si no hay entregable cuantificable/enumerable, devuelve una lista vacía.
 
 No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\u00edas. Distingue hechos respaldados del brief, hip\u00f3tesis y afirmaciones descartadas. El campo prompt es un prompt editable y completo en espa\u00f1ol para construir la landing. Incluye decisiones de estrategia, voz, recorrido, direcci\u00f3n visual, detalle de secciones, comportamiento accesible y atributos data-xpage-section/data-xpage-slot que conecten HTML y plan.`;
   const startedAt = Date.now();

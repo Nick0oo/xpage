@@ -26,6 +26,14 @@ export const landingSectionSchema = z.object({
   mediaSlotIds: z.array(z.string()),
 });
 
+export const explicitContentRequirementSchema = z.object({
+  id: z.string().regex(/^[a-z0-9-]+$/),
+  statement: z.string().min(1),
+  sectionId: z.string().regex(/^[a-z0-9-]+$/),
+  targetCount: z.number().int().positive().max(30).optional(),
+  requiredItems: z.array(z.string().trim().min(1)).max(30),
+});
+
 export const techniqueContributionSchema = z.object({
   techniqueId: techniqueIdSchema,
   skillVersion: z.string().min(1),
@@ -62,6 +70,7 @@ export const designPlanSchema = z.object({
   }),
   audienceHypotheses: z.array(z.object({ motivation: z.string(), objection: z.string() })),
   sections: z.array(landingSectionSchema).min(1),
+  explicitContentRequirements: z.array(explicitContentRequirementSchema).max(20).default([]),
   mediaSlots: z.array(mediaSlotSchema),
   contributions: z.array(techniqueContributionSchema).min(1),
   claims: z.array(z.object({ text: z.string(), status: z.enum(["brief-backed", "hypothesis", "unsupported"]), source: z.string() })),
@@ -79,11 +88,20 @@ export const designPlanSchema = z.object({
   for (const contribution of plan.contributions) {
     if (contribution.status === "omitted" && !contribution.reason) ctx.addIssue({ code: "custom", message: "Una técnica omitida requiere razón.", path: ["contributions"] });
   }
+  const requirementIds = new Set(plan.explicitContentRequirements.map(({ id }) => id));
+  if (requirementIds.size !== plan.explicitContentRequirements.length) ctx.addIssue({ code: "custom", message: "Los requisitos de contenido deben tener IDs únicos.", path: ["explicitContentRequirements"] });
+  for (const requirement of plan.explicitContentRequirements) {
+    if (!ids.has(requirement.sectionId)) ctx.addIssue({ code: "custom", message: "Cada requisito debe apuntar a una sección existente.", path: ["explicitContentRequirements"] });
+    if (requirement.targetCount !== undefined && requirement.requiredItems.length !== requirement.targetCount) ctx.addIssue({ code: "custom", message: "El inventario de contenido debe coincidir con la cantidad pedida.", path: ["explicitContentRequirements"] });
+    const items = new Set(requirement.requiredItems.map((item) => item.trim().toLocaleLowerCase()));
+    if (items.size !== requirement.requiredItems.length) ctx.addIssue({ code: "custom", message: "Los elementos requeridos deben ser únicos.", path: ["explicitContentRequirements"] });
+  }
 });
 
 export type DesignPlan = z.infer<typeof designPlanSchema>;
 export type TechniqueContribution = z.infer<typeof techniqueContributionSchema>;
 export type LandingSection = z.infer<typeof landingSectionSchema>;
+export type ExplicitContentRequirement = z.infer<typeof explicitContentRequirementSchema>;
 export type MediaSlot = z.infer<typeof mediaSlotSchema>;
 
 export function validateTechniqueCoverage(plan: DesignPlan, selectedIds: readonly string[]) {

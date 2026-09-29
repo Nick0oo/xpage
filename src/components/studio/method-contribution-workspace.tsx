@@ -122,7 +122,9 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
                         <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={3000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
                       </label>
                     </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <details className="rounded-xl border border-border bg-muted/20 p-3">
+                      <summary className="cursor-pointer text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">{"Ver contexto del m\u00e9todo"}</summary>
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div className="rounded-xl bg-muted/40 p-3">
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Entradas consideradas</p>
                         <p className="mt-1.5 text-sm leading-5">{technique.inputs}</p>
@@ -131,7 +133,8 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
                         <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Qué entrega este método</p>
                         <p className="mt-1.5 text-sm leading-5">{contribution.artifact}</p>
                       </div>
-                    </div>
+                      </div>
+                    </details>
                     {contribution.tensions.length > 0 || contribution.resolution ? (
                       <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-3 text-sm">
                         <p className="font-medium">Tensiones y resolución</p>
