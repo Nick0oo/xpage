@@ -2,7 +2,7 @@
 name: combine
 description: Integra varias técnicas en un plan y recorrido únicos, con precedencia, tensiones, decisiones y revisiones explícitas.
 ---
-# Combinación de técnicas · v1.1.0
+# Combinación de técnicas · v1.2.0
 
 ## Propósito
 Crear una sola dirección de diseño coherente a partir de las técnicas seleccionadas. No concatenes instrucciones ni generes una página por técnica.
@@ -13,7 +13,7 @@ Crear una sola dirección de diseño coherente a partir de las técnicas selecci
 3. Incluye una contribución con versión, estado, decisión y artefacto para cada técnica seleccionada.
 4. Compara decisiones incompatibles entre pares y registra la tensión concreta y su resolución.
 5. Aplica esta precedencia: hechos del brief y accesibilidad; restricciones expresas; DesignDNA; propósito narrativo; decisiones visuales y copy.
-6. Conserva solo secciones funcionales. Resuelve duplicados sin sacrificar necesidades del público.
+6. Conserva las secciones que expresan valor, detalle, ejemplos, entregables, objeciones y acción. Quita repetición sin reducir la página a un hero, un resumen y un CTA por defecto. Si el brief ofrece material, suele requerir unas 5–7 secciones sustantivas con propósitos y composiciones distintas; usa menos solo si la oferta realmente es simple.
 7. Si creator-critic está seleccionado, registra propuesta, hallazgos observables y revisión del plan integrado. Si una técnica no cambia una decisión, justifícalo.
 8. Verifica fuentes de claims, slots enlazados a secciones, IDs únicos, invariantes y que el prompt editable refleje el plan final.
 
@@ -29,3 +29,8 @@ Completa `contributions`, `sections`, `claims`, `negativeConstraints` y `prompt`
 
 ## Ejemplo
 Video-assets pide movimiento y negative-constraints pide movimiento mínimo: especifica un clip silencioso con poster y controles; con `prefers-reduced-motion`, usa solo el poster y conserva el mensaje.
+
+### Recorrido y CTA
+- Para una oferta con contenido suficiente, muestra una explicación clara, los entregables y ejemplos concretos antes del siguiente paso. No sustituyas una experiencia completa por una promesa de que existe.
+- Usa una URL del brief si la hay. Si no se dio destino, enlaza el CTA principal a una sección relevante de la misma página. Nunca dejes el CTA deshabilitado ni simules una acción inexistente.
+- Verifica que el HTML contenga cada sección del plan y que los elementos obligatorios aparezcan como texto visible.

@@ -73,6 +73,7 @@ export const landingCodeSchema = z.object({
 
 export const landingRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(12_000),
+  plannedSectionIds: z.array(z.string().regex(/^[a-z0-9-]{1,80}$/)).max(20).optional(),
   explicitContentRequirements: z.array(z.object({
     id: z.string().regex(/^[a-z0-9-]+$/),
     statement: z.string().min(1).max(500),

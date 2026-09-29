@@ -47,6 +47,10 @@ Devuelve un DesignPlan completo seg\u00fan el esquema. Trabaja primero una propu
 
 En explicitContentRequirements, registra cada entregable de contenido que el usuario pidió de forma medible o enumerable. Un pedido de 5 ejercicios requiere 5 ejercicios concretos, no solo la frase «hasta cinco»; si el brief establece un máximo, nunca lo excedas. Redacta contenido creativo original cuando sea parte del entregable; la prohibición de inventar hechos no prohíbe crear ejemplos, juegos o ejercicios solicitados. Asigna una sección y enumera allí los textos exactos que luego deben aparecer en HTML. Haz que section.copy y el prompt editable incluyan esos mismos textos; luego verifica que cada uno está representado. Deja la lista vacía si no hay un entregable explícito.
 
+No reduzcas la landing a tres bloques por defecto. Diseña un recorrido completo acorde a la información disponible: con material suficiente, suele tener 5–7 secciones sustantivas (oferta, detalle, ejemplos o entrega, cómo funciona, dudas relevantes y cierre), cada una con objetivo, copy desarrollado y aporte distinto. Evita secciones de relleno y testimonios o pruebas que no estén en el brief. Si la información es limitada, usa menos y explica con claridad, no inventes profundidad.
+
+CTA: usa el destino externo si el brief lo proporciona. Si no, elige un enlace interno que conduzca a una sección o contenido real de esta landing; nunca propongas un botón deshabilitado ni una acción ficticia. Refleja ese destino en la sección final y en el prompt.
+
 Brief (fuente de hechos):
 ${briefText}
 Brief completo y controles elegidos:

@@ -508,6 +508,7 @@ export default function Home() {
       const traceId = await createLandingTrace(result);
       const payload = await postJson<unknown>("/api/landings", {
         prompt: result.prompt,
+        plannedSectionIds: result.designPlan?.sections.map((section) => section.id) ?? [],
         explicitContentRequirements: result.designPlan?.explicitContentRequirements ?? [],
         modelChoice: result.modelChoice,
         traceId,
