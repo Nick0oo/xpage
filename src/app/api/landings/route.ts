@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { parseFragment, type DefaultTreeAdapterTypes } from "parse5";
+import postcss from "postcss";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { landingCodeSchema, landingRequestSchema } from "@/lib/schemas";
+import { z } from "zod";
 import {
   ensureLandingTrace,
   recordProviderAttempts,
@@ -25,7 +27,7 @@ INTERACCIÓN Y REVISIÓN: evalúa claridad, jerarquía, contraste, navegación, 
 
 REQUISITOS DE CONTENIDO: cada elemento de explicitContentRequirements es obligatorio. Incluye todos los requiredItems completos, visibles y legibles dentro de su sección; no los reemplaces con un titular que solo mencione una cantidad. El texto debe seguir presente al desactivar JavaScript.
 
-IMPLEMENTACIÓN: usa HTML semántico, estilos móviles primero, foco visible, contraste suficiente y prefers-reduced-motion. JavaScript solo para interacciones reales, locales y accesibles. No uses React, frameworks, imports, CDNs, fuentes/imágenes remotas, iframes, formularios con envío, red, almacenamiento web ni acceso al documento padre. Para medios, usa composición CSS/SVG útil hasta que exista un recurso local; jamás dejes un bloque vacío o un placeholder genérico. Devuelve solamente los campos del esquema.`;
+IMPLEMENTACIÓN: usa HTML semántico, estilos móviles primero, foco visible, contraste suficiente y prefers-reduced-motion. At 360, 390, 768 and 1440 px prevent horizontal overflow: let headings wrap, use fluid font sizes, set min-width:0 on grid and flex children, and keep the header note and SVG within the viewport. JavaScript solo para interacciones reales, locales y accesibles. No uses React, frameworks, imports, CDNs, fuentes/imágenes remotas, iframes, formularios con envío, red, almacenamiento web ni acceso al documento padre. Para medios, usa composición CSS/SVG útil hasta que exista un recurso local; jamás dejes un bloque vacío o un placeholder genérico. Devuelve solamente los campos del esquema.`;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -53,6 +55,25 @@ export async function POST(request: Request) {
     if (!initial.success) throw new Error("Eve devolvió HTML, CSS o JavaScript incompleto.");
     attempts.push({ provider: "eve-local", model: modelChoice, status: "completed", durationMs: Date.now() - generationStartedAt, output: initial.data });
     let output = initial.data;
+    const initialCssError = cssSyntaxError(output.css);
+    if (initialCssError) {
+      const repairStartedAt = Date.now();
+      const cssRepairSchema = z.object({ css: landingCodeSchema.shape.css });
+      const repairMessage = `Repair only the syntax of this CSS. Do not redesign or change colors, scale, composition, selectors, or behavior. Return only { css }. Preserve all styles and fix only syntax errors that prevent parsing. Parser error: ${initialCssError}\n\nORIGINAL CSS\n${output.css}`;
+      try {
+        const { data: repairData } = await runEveStructured({ modelChoice, message: repairMessage, outputSchema: cssRepairSchema });
+        const repaired = cssRepairSchema.safeParse(repairData);
+        if (!repaired.success) throw new Error("Eve returned incomplete CSS.");
+        const repairCssError = cssSyntaxError(repaired.data.css);
+        if (repairCssError) throw new Error(`Repaired CSS is still invalid: ${repairCssError}`);
+        output = { ...output, css: repaired.data.css };
+        attempts.push({ provider: "eve-local", model: modelChoice, status: "completed", durationMs: Date.now() - repairStartedAt, output: { css: repaired.data.css } });
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "CSS syntax error";
+        attempts.push({ provider: "eve-local", model: modelChoice, status: "failed", durationMs: Date.now() - repairStartedAt, errorMessage: reason.slice(0, 300) });
+        throw new Error(`CSS_INVALID: CSS syntax repair failed. ${reason.slice(0, 220)}`);
+      }
+    }
     let missing = missingLandingElements(output.html, explicitContentRequirements, plannedSectionIds);
     if (missing.length) {
       const repairStartedAt = Date.now();
@@ -96,11 +117,23 @@ export async function POST(request: Request) {
       }],
     }).catch(() => undefined);
     await setTraceStatus(generationTraceId, "failed");
+    if (message.startsWith("CSS_INVALID:")) {
+      return NextResponse.json({ error: message.replace("CSS_INVALID: ", ""), code: "invalid_generated_css" }, { status: 422 });
+    }
     const missingContent = message.startsWith("La landing no cumple el contrato del plan:");
     return NextResponse.json({
       error: missingContent ? message : `Eve no pudo construir la landing con ${modelChoice}. Revisa el acceso al proveedor seleccionado e inténtalo otra vez.`,
       code: missingContent ? "plan_contract_failed" : "eve_model_unavailable",
     }, { status: missingContent ? 422 : 503 });
+  }
+}
+
+function cssSyntaxError(css: string) {
+  try {
+    postcss.parse(css);
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message.slice(0, 220) : "Invalid CSS syntax";
   }
 }
 
