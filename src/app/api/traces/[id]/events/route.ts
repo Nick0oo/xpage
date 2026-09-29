@@ -32,6 +32,11 @@ const eventSchema = z.discriminatedUnion("type", [
     decision: z.string().trim().min(1).max(1200),
     artifact: z.string().trim().min(1).max(3000),
   }),
+  z.object({
+    type: z.literal("final-prompt-edit"),
+    techniqueIds: z.array(techniqueIdSchema).min(1).max(8),
+    prompt: z.string().trim().min(1).max(12_000),
+  }),
 ]);
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -72,6 +77,17 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       output: { techniqueId: parsed.data.techniqueId, decision: parsed.data.decision, artifact: parsed.data.artifact },
       decisionSummary: `Aporte de ${parsed.data.techniqueId} editado por el usuario.`,
       references: [{ kind: "source", id: `technique:${parsed.data.techniqueId}` }],
+    });
+  } else if (parsed.data.type === "final-prompt-edit") {
+    await recordTraceStep(id, {
+      eventType: "revision",
+      phase: "combined-prompt-edited",
+      title: "Prompt final revisado",
+      techniqueIds: parsed.data.techniqueIds,
+      outputText: parsed.data.prompt,
+      output: { techniqueIds: parsed.data.techniqueIds, prompt: parsed.data.prompt },
+      decisionSummary: "Prompt final actualizado por el usuario antes de construir la landing.",
+      references: parsed.data.techniqueIds.map((techniqueId) => ({ kind: "source" as const, id: `technique:${techniqueId}` })),
     });
   } else {
     await recordTraceStep(id, {

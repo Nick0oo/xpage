@@ -8,17 +8,17 @@ import { BriefForm } from "@/components/studio/brief-form";
 import { PromptResults } from "@/components/studio/prompt-results";
 import { TechniqueSelector } from "@/components/studio/technique-selector";
 import { EveModelSelector } from "@/components/studio/eve-model-selector";
-import { CreativeDirectionPicker } from "@/components/studio/creative-direction-picker";
+import { MethodContributionWorkspace } from "@/components/studio/method-contribution-workspace";
 import { SectionEditorWorkspace } from "@/components/studio/section-editor-workspace";
 import { Button } from "@/components/ui/button";
 import { MediaWorkspace } from "@/components/media/media-workspace";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
-import type { TechniqueId } from "@/lib/techniques";
-import type { ActiveLanding, PromptResult } from "@/lib/studio-types";
+import { designPlanSchema, techniqueContributionSchema } from "@/lib/design-plan";
+import { TECHNIQUE_IDS, type TechniqueId } from "@/lib/techniques";
+import type { ActiveLanding, PromptResult, TechniqueRun } from "@/lib/studio-types";
 import { getLanding, recordHtmlExport, saveLanding } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName } from "@/lib/preview-document";
-import { DEFAULT_MODEL_CHOICE, type ModelChoice } from "@/lib/model-choice";
-import { creativeDirectionsResponseSchema, type CreativeDirection } from "@/lib/creative-directions";
+import { DEFAULT_MODEL_CHOICE, MODEL_CHOICES, type ModelChoice } from "@/lib/model-choice";
 
 const emptyBrief: Brief = {
   topic: "",
@@ -78,8 +78,10 @@ export default function Home() {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof Brief, string>>>({});
   const [formError, setFormError] = useState("");
   const [promptResults, setPromptResults] = useState<PromptResult[]>([]);
+  const [methodRuns, setMethodRuns] = useState<TechniqueRun[]>([]);
   const [activeResultId, setActiveResultId] = useState<string | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
+  const [combiningMethods, setCombiningMethods] = useState(false);
   const [step, setStep] = useState<CreationStep>(1);
   const [view, setView] = useState<"create" | "preview">("create");
   const [activeLanding, setActiveLanding] = useState<ActiveLanding | null>(null);
@@ -87,13 +89,68 @@ export default function Home() {
   const [downloadError, setDownloadError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
   const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
-  const [creativeDirections, setCreativeDirections] = useState<CreativeDirection[]>([]);
-  const [directionTraceId, setDirectionTraceId] = useState<string | null>(null);
-  const [directionModelChoice, setDirectionModelChoice] = useState<ModelChoice | null>(null);
   const pendingPromptTraces = useRef(new Map<string, { prompt: string; promise: Promise<void> }>());
   const restoredLandingId = useRef<string | null>(null);
+  const skipWorkflowWrite = useRef(true);
 
-  const busy = batchGenerating || activeResultId !== null;
+  const busy = batchGenerating || combiningMethods || activeResultId !== null;
+
+  useEffect(() => {
+    const raw = window.sessionStorage.getItem("xpage-method-workflow");
+    if (raw) {
+      try {
+        const draft = JSON.parse(raw) as Record<string, unknown>;
+        const parsedBrief = briefSchema.safeParse(draft.brief);
+        if (draft.version === 1 && parsedBrief.success) {
+          setBrief(parsedBrief.data);
+          if (Array.isArray(draft.selectedIds)) setSelectedIds(draft.selectedIds.filter((id): id is TechniqueId => typeof id === "string" && ["seed-strings", "ambitious-prompts", "creator-critic", "image-assets", "video-assets", "subtractive-design", "negative-constraints", "human-copy"].includes(id)));
+          if (typeof draft.modelChoice === "string" && MODEL_CHOICES.includes(draft.modelChoice as ModelChoice)) setModelChoice(draft.modelChoice as ModelChoice);
+          if (Array.isArray(draft.methodRuns)) {
+            const restored = draft.methodRuns.flatMap((value) => {
+              if (!value || typeof value !== "object") return [];
+              const run = value as TechniqueRun;
+              const plan = run.designPlan ? designPlanSchema.safeParse(run.designPlan) : null;
+              const contribution = run.contribution ? techniqueContributionSchema.safeParse(run.contribution) : null;
+              if (typeof run.id !== "string" || typeof run.traceId !== "string" || !run.traceId || !TECHNIQUE_IDS.includes(run.techniqueId) || !MODEL_CHOICES.includes(run.modelChoice)) return [];
+              if ((run.designPlan && !plan?.success) || (run.contribution && !contribution?.success)) return [];
+              if (!["queued", "loading", "ready", "error"].includes(run.status)) return [];
+              return [{ ...run, status: run.status === "loading" ? "error" as const : run.status, error: run.status === "loading" ? "La ejecución se interrumpió al recargar. Reintenta este método." : run.error, designPlan: plan?.success ? plan.data : null, contribution: contribution?.success ? contribution.data : null }];
+            });
+            setMethodRuns(restored);
+            if (restored.length) setStep(3);
+          }
+          if (Array.isArray(draft.promptResults)) {
+            const restoredResults = draft.promptResults.flatMap((value) => {
+              if (!value || typeof value !== "object") return [];
+              const result = value as PromptResult;
+              const plan = result.designPlan ? designPlanSchema.safeParse(result.designPlan) : null;
+              if (typeof result.id !== "string" || typeof result.traceId !== "string" || typeof result.prompt !== "string" || !plan?.success || !MODEL_CHOICES.includes(result.modelChoice)) return [];
+              return [{ ...result, designPlan: plan.data, status: "ready" as const }];
+            });
+            setPromptResults(restoredResults);
+            if (restoredResults.length) setStep(3);
+          }
+        }
+      } catch {
+        window.sessionStorage.removeItem("xpage-method-workflow");
+      }
+    }
+    skipWorkflowWrite.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (skipWorkflowWrite.current) {
+      skipWorkflowWrite.current = false;
+      return;
+    }
+    try {
+      window.sessionStorage.setItem("xpage-method-workflow", JSON.stringify({
+        version: 1, brief, selectedIds, methodRuns, promptResults, modelChoice,
+      }));
+    } catch {
+      // The server trace remains the durable record if browser storage is full.
+    }
+  }, [brief, selectedIds, methodRuns, promptResults, modelChoice, step]);
 
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -133,11 +190,9 @@ export default function Home() {
     const changed = brief[field] !== value;
     setBrief((current) => ({ ...current, [field]: value }));
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
-    setCreativeDirections([]);
-    setDirectionTraceId(null);
-    setDirectionModelChoice(null);
-    if (changed && promptResults.length > 0) {
+    if (changed && (promptResults.length > 0 || methodRuns.length > 0)) {
       setPromptResults([]);
+      setMethodRuns([]);
       setStep(1);
       setFormError("Cambiaste el brief. Revisa los métodos y genera prompts nuevos para esta versión.");
     } else {
@@ -149,11 +204,9 @@ export default function Home() {
     setSelectedIds((current) =>
       current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id],
     );
-    setCreativeDirections([]);
-    setDirectionTraceId(null);
-    setDirectionModelChoice(null);
-    if (promptResults.length > 0) {
+    if (promptResults.length > 0 || methodRuns.length > 0) {
       setPromptResults([]);
+      setMethodRuns([]);
       setStep(2);
       setFormError("Cambiaste las técnicas. Genera prompts nuevos para aplicar esta selección.");
     } else {
@@ -192,7 +245,7 @@ export default function Home() {
       return;
     }
 
-    if (promptResults.length > 0) setStep(3);
+    if (promptResults.length > 0 || methodRuns.length > 0) setStep(3);
   }
 
   async function createTrace(
@@ -275,97 +328,112 @@ export default function Home() {
     }
   }
 
-  async function generateCreativeDirections() {
+  async function runMethod(techniqueId: TechniqueId, traceId: string, parsedBrief: Brief, choice: ModelChoice) {
+    setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId ? { ...run, status: "loading", error: undefined } : run));
+    try {
+      const payload = await postJson<ApiResponse & { designPlan?: unknown }>("/api/prompts", {
+        mode: "technique", brief: parsedBrief, techniqueId, modelChoice: choice, traceId,
+      });
+      const parsed = designPlanSchema.safeParse(payload.designPlan);
+      if (!parsed.success) throw new Error("Eve respondió, pero el aporte de este método no cumple la estructura revisable.");
+      const contribution = parsed.data.contributions.find((item) => item.techniqueId === techniqueId);
+      if (!contribution) throw new Error("La respuesta no incluyó el aporte de este método.");
+      setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId
+        ? { ...run, status: "ready", contribution, designPlan: parsed.data, error: undefined } : run));
+    } catch (error) {
+      setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId
+        ? { ...run, status: "error", error: error instanceof Error ? error.message : "No se pudo completar este método." } : run));
+    }
+  }
+
+  async function runSelectedMethods() {
     const parsedBrief = validatedBrief();
     if (!parsedBrief) return;
     if (selectedIds.length === 0) {
-      setFormError("Selecciona al menos un método para explorar direcciones.");
+      setFormError("Selecciona al menos un método para iniciar el trabajo.");
       return;
     }
-
     setBatchGenerating(true);
     setFormError("");
     const techniqueIds = [...selectedIds];
     try {
-      setCreativeDirections([]);
       setPromptResults([]);
-      setDirectionModelChoice(modelChoice);
-      const traceId = await createTrace(parsedBrief, techniqueIds, "directions");
-      const payload = await postJson<unknown>("/api/prompts", {
-        mode: "directions",
-        brief: parsedBrief,
-        techniqueIds,
-        modelChoice,
-        traceId,
-      });
-      const parsed = creativeDirectionsResponseSchema.safeParse(payload);
-      if (!parsed.success) throw new Error("Eve no devolvió dos direcciones completas para comparar.");
-      setCreativeDirections(parsed.data.directions);
-      setDirectionTraceId(traceId);
+      setMethodRuns([]);
+      const traceId = await createTrace(parsedBrief, techniqueIds, techniqueIds.length > 1 ? "combined" : "individual");
+      setMethodRuns(techniqueIds.map((techniqueId) => ({
+        id: crypto.randomUUID(), techniqueId, traceId, modelChoice, status: "queued" as const, contribution: null, designPlan: null,
+      })));
+      setStep(3);
+      for (const techniqueId of techniqueIds) {
+        await runMethod(techniqueId, traceId, parsedBrief, modelChoice);
+      }
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "No se pudieron generar las direcciones.");
+      setFormError(error instanceof Error ? error.message : "No se pudieron iniciar los métodos.");
     } finally {
       setBatchGenerating(false);
+    }
+  }
+
+  function updateMethodContribution(techniqueId: TechniqueId, field: "decision" | "artifact", value: string) {
+    setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId && run.contribution
+      ? { ...run, contribution: { ...run.contribution, [field]: value } } : run));
+    setPromptResults([]);
+  }
+
+  async function commitMethodContribution(run: TechniqueRun) {
+    if (!run.contribution) return;
+    await postJson(`/api/traces/${run.traceId}/events`, {
+      type: "method-contribution-edit", techniqueId: run.techniqueId,
+      decision: run.contribution.decision, artifact: run.contribution.artifact,
+    });
+  }
+
+  async function combineMethods() {
+    const parsedBrief = validatedBrief();
+    if (!parsedBrief || methodRuns.length === 0 || methodRuns.some((run) => run.status !== "ready" || !run.contribution)) return;
+    const traceId = methodRuns[0].traceId;
+    const techniqueIds = methodRuns.map((run) => run.techniqueId);
+    setCombiningMethods(true);
+    setFormError("");
+    try {
+      const payload = await postJson<ApiResponse & { designPlan?: unknown }>("/api/prompts", {
+        mode: "combine", brief: parsedBrief, techniqueIds,
+        methodContributions: methodRuns.map((run) => run.contribution!), modelChoice, traceId,
+      });
+      const parsed = designPlanSchema.safeParse(payload.designPlan);
+      if (!parsed.success) throw new Error("Eve no devolvió un plan combinado revisable. Puedes combinar de nuevo sin perder los aportes.");
+      setPromptResults([{
+        id: crypto.randomUUID(), brief: parsedBrief, techniqueIds, combined: true, traceId,
+        prompt: parsed.data.prompt, designPlan: parsed.data,
+        methodContributions: methodRuns.map((run) => run.contribution!),
+        generationMode: "eve-design-plan", status: "ready", modelChoice,
+      }]);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "No se pudieron combinar los aportes. Puedes reintentar esta etapa.");
+    } finally {
+      setCombiningMethods(false);
     }
   }
 
   function changeModelChoice(value: ModelChoice) {
     setModelChoice(value);
-    if (creativeDirections.length > 0) {
-      setCreativeDirections([]);
-      setDirectionTraceId(null);
-      setDirectionModelChoice(null);
-      setFormError("Cambiaste el modelo. Genera direcciones nuevas para comparar resultados del mismo modelo.");
-    }
-  }
-
-  async function chooseCreativeDirection(direction: CreativeDirection) {
-    if (!directionTraceId) return;
-    setFormError("");
-    setBatchGenerating(true);
-    const directionMetadata = {
-      id: direction.id,
-      title: direction.title,
-      rationale: direction.rationale,
-      structuralDifference: direction.structuralDifference,
-    };
-    try {
-      await postJson(`/api/traces/${directionTraceId}/events`, {
-        type: "creative-direction-selection",
-        direction: directionMetadata,
-      });
-      const techniqueIds = [...selectedIds];
-      setPromptResults([{
-        id: crypto.randomUUID(),
-        brief,
-        techniqueIds,
-        combined: techniqueIds.length > 1,
-        traceId: directionTraceId,
-        prompt: direction.designPlan.prompt,
-        designPlan: direction.designPlan,
-        creativeDirection: direction,
-        generationMode: "eve-design-plan",
-        status: "ready",
-        modelChoice: directionModelChoice ?? modelChoice,
-      }]);
-      setStep(3);
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "No se pudo registrar la dirección elegida.");
-    } finally {
-      setBatchGenerating(false);
+    if (methodRuns.length > 0 || promptResults.length > 0) {
+      setMethodRuns([]);
+      setPromptResults([]);
+      setStep(2);
+      setFormError("Cambiaste el modelo. Ejecuta de nuevo los métodos para mantener una traza coherente.");
     }
   }
 
   async function recordPromptEdit(resultId: string, prompt: string) {
     const result = promptResults.find(({ id }) => id === resultId);
-    if (!result?.creativeDirection || prompt === result.creativeDirection.designPlan.prompt || prompt === result.lastTracedPrompt) return;
+    if (!result || prompt === result.designPlan?.prompt || prompt === result.lastTracedPrompt) return;
     const pending = pendingPromptTraces.current.get(resultId);
     if (pending?.prompt === prompt) return pending.promise;
-    const promise = postJson(`/api/traces/${result.traceId}/events`, {
-        type: "prompt-edit",
-        directionId: result.creativeDirection.id,
-        prompt,
-      }).then(() => {
+    const body = result.creativeDirection
+      ? { type: "prompt-edit", directionId: result.creativeDirection.id, prompt }
+      : { type: "final-prompt-edit", techniqueIds: result.techniqueIds, prompt };
+    const promise = postJson(`/api/traces/${result.traceId}/events`, body).then(() => {
       setPromptResults((current) => current.map((item) => item.id === resultId ? { ...item, lastTracedPrompt: prompt } : item));
     }).catch((error: unknown) => {
       setFormError(error instanceof Error ? error.message : "No se pudo guardar la edición en la traza.");
@@ -382,7 +450,7 @@ export default function Home() {
     if (!result) return;
 
     const request: PromptRequest = result.combined
-      ? { mode: "combine", brief: result.brief, techniqueIds: result.techniqueIds, modelChoice: result.modelChoice }
+      ? { mode: "combine", brief: result.brief, techniqueIds: result.techniqueIds, methodContributions: result.methodContributions ?? [], modelChoice: result.modelChoice }
       : { mode: "technique", brief: result.brief, techniqueId: result.techniqueIds[0], modelChoice: result.modelChoice };
     void generatePrompt(resultId, result.traceId, request);
   }
@@ -643,7 +711,7 @@ export default function Home() {
             ] satisfies { number: CreationStep; title: string; subtitle: string }[]).map((item) => {
               const current = step === item.number;
               const complete = step > item.number;
-              const unavailable = busy || (item.number === 3 && promptResults.length === 0 && step !== 3);
+              const unavailable = busy || (item.number === 3 && promptResults.length === 0 && methodRuns.length === 0 && step !== 3);
 
               return (
                 <li key={item.number}>
@@ -718,18 +786,16 @@ export default function Home() {
             <TechniqueSelector selected={selectedIds} disabled={busy} onToggle={toggleTechnique} />
             <section className="grid gap-4 rounded-2xl border border-primary/20 bg-primary/[0.025] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Una llamada a Eve</p>
-                <h3 className="mt-1 font-display text-xl">Explora antes de construir</h3>
-                <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">Eve aplica los métodos elegidos y devuelve dos o tres rutas con estructura, hero, ritmo, medios y prompt propios. Comparas y eliges una antes de generar HTML.</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Ejecuciones independientes</p>
+                <h3 className="mt-1 font-display text-xl">Un aporte revisable por técnica</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">Eve trabaja cada método por separado. Inspecciona y ajusta sus decisiones antes de pedir una combinación que use todos los aportes seleccionados.</p>
                 <p className="mt-2 text-xs text-muted-foreground">{selectedCount > 0 ? `${selectedCount} método${selectedCount === 1 ? "" : "s"} · ${modelChoice}` : "Selecciona al menos un método"}</p>
               </div>
-              <Button type="button" onClick={() => void generateCreativeDirections()} disabled={busy || selectedCount === 0} className="w-full sm:w-auto">
+              <Button type="button" onClick={() => void runSelectedMethods()} disabled={busy || selectedCount === 0} className="w-full sm:w-auto">
                 {batchGenerating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
-                {batchGenerating ? "Diseñando rutas…" : "Generar direcciones"}
+                {batchGenerating ? "Iniciando métodos…" : "Ejecutar métodos"}
               </Button>
             </section>
-
-            <CreativeDirectionPicker directions={creativeDirections} onChoose={(direction) => void chooseCreativeDirection(direction)} disabled={busy} />
 
             {formError ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">{formError}</p> : null}
 
@@ -747,9 +813,9 @@ export default function Home() {
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Etapa 03 · Revisión</p>
-                <h2 id="prompt-results-heading" className="mt-1 font-display text-2xl sm:text-3xl">Ajusta tus prompts antes de construir</h2>
+                <h2 id="prompt-results-heading" className="mt-1 font-display text-2xl sm:text-3xl">Aportes primero; prompt final después</h2>
                 <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Revisa el prompt de la dirección elegida, edítalo y construye cuando esté listo.
+                  Inspecciona, edita o reintenta cada método. Cuando estén listos, combínalos y aprueba el prompt que se enviará a construir la landing.
                 </p>
               </div>
               <Button type="button" variant="ghost" onClick={() => goToStep(2)} disabled={busy}>
@@ -760,19 +826,30 @@ export default function Home() {
 
             {formError ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">{formError}</p> : null}
 
-            {batchGenerating && promptResults.length === 0 ? (
-              <div role="status" className="flex min-h-36 items-center gap-3 rounded-2xl border border-border bg-card px-5 py-6">
-                <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary">
-                  <LoaderCircle className="animate-spin" aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block text-sm font-semibold">Preparando tu primer prompt</span>
-                  <span className="mt-1 block text-sm text-muted-foreground">Este paso puede tardar un momento; los resultados aparecerán aquí.</span>
-                </span>
+            {batchGenerating && methodRuns.length === 0 ? (
+              <div role="status" className="flex min-h-28 items-center gap-3 rounded-2xl border border-border bg-card px-5 py-6">
+                <LoaderCircle className="animate-spin text-primary" aria-hidden="true" />
+                <span className="text-sm text-muted-foreground">Preparando la traza común para las ejecuciones seleccionadas…</span>
               </div>
             ) : null}
 
-            <PromptResults
+            {methodRuns.length > 0 ? (
+              <MethodContributionWorkspace
+                runs={methodRuns}
+                combining={combiningMethods}
+                disabled={busy}
+                editDisabled={combiningMethods}
+                onEdit={updateMethodContribution}
+                onCommit={(run) => void commitMethodContribution(run).catch((error: unknown) => setFormError(error instanceof Error ? error.message : "No se pudo guardar el cambio en la traza."))}
+                onRetry={(run) => void runMethod(run.techniqueId, run.traceId, brief, run.modelChoice)}
+                onCombine={() => void combineMethods()}
+              />
+            ) : null}
+
+            {combiningMethods ? <p role="status" className="rounded-xl border border-primary/20 bg-primary/[0.03] px-4 py-3 text-sm text-muted-foreground">Eve está integrando los aportes revisados en un plan y prompt final…</p> : null}
+
+            {promptResults.length > 0 ? <div className="rounded-2xl border border-primary/20 bg-primary/[0.025] p-4 sm:p-5"><p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Resultado de la combinación</p><p className="mt-1 text-sm text-muted-foreground">Edita y confirma el prompt final. Solo este texto aprobado se usará para construir HTML.</p></div> : null}
+            {promptResults.length > 0 ? <PromptResults
               results={promptResults}
               activeResultId={activeResultId}
               onPromptChange={(id, value) =>
@@ -783,7 +860,7 @@ export default function Home() {
               onPromptCommit={(id, value) => void recordPromptEdit(id, value).catch(() => undefined)}
               onRun={(id) => void buildLanding(id)}
               onRetry={retryPrompt}
-            />
+            /> : null}
           </section>
         ) : null}
       </div>
