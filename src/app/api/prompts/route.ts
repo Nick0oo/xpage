@@ -22,6 +22,12 @@ export async function POST(request: Request) {
   if (input.mode === "directions") return generateCreativeDirections(input);
 
   const techniqueIds = input.mode === "technique" ? [input.techniqueId] : input.techniqueIds;
+  if (input.mode === "combine") {
+    const contributionIds = input.methodContributions.map(({ techniqueId }) => techniqueId);
+    if (new Set(contributionIds).size !== contributionIds.length || contributionIds.length !== techniqueIds.length || techniqueIds.some((id) => !contributionIds.includes(id))) {
+      return NextResponse.json({ error: "Los aportes recibidos no corresponden exactamente a los métodos seleccionados.", code: "invalid_contributions" }, { status: 400 });
+    }
+  }
   const techniques = techniqueIds.map(getTechnique);
   const briefText = [
     `Tema o industria: ${input.brief.topic}`,
@@ -38,11 +44,17 @@ export async function POST(request: Request) {
   const message = `${task}
 
 Carga y sigue estas skills de Eve: ${skillNames.join(", ")}. Trata sus instrucciones como procedimientos que debes ejecutar, no como etiquetas.
+${input.mode === "combine" ? `
+APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensión, resuélvela según hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisión en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
+${JSON.stringify(input.methodContributions, null, 2)}
+` : ""}
 
 Devuelve un DesignPlan completo según el esquema. Trabaja primero una propuesta completa, evalúala y revisa el resultado antes de responder. Si el método creator-critic está seleccionado, rellena su propuesta, hallazgos y revisión explícitos. Describe decisiones observables, nunca razonamiento privado.
 
 Brief (fuente de hechos):
 ${briefText}
+Brief completo y controles elegidos:
+${JSON.stringify(input.brief)}
 
 IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribución debe identificar la técnica, versión de skill, decisión concreta, artefacto visible y estado. Registra tensiones reales y su resolución. La cobertura de contribuciones debe coincidir exactamente con los métodos seleccionados.
 
@@ -86,21 +98,21 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant�
       modelChoice: input.modelChoice,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Eve no pudo completar el plan.";
+    const failureReason = safeFailureMessage(error);
     await recordTraceStep(input.traceId, {
       phase,
       title: "Plan de diseño · Eve",
       techniqueIds,
       provider: "eve-local",
       model: input.modelChoice,
-      userPrompt: briefText,
+      userPrompt: message,
       status: "failed",
-      errorMessage: message.slice(0, 500),
+      errorMessage: failureReason.slice(0, 500),
       durationMs: Date.now() - startedAt,
     }).catch(() => undefined);
     await updateTraceStatus(input.traceId, "failed");
     return NextResponse.json({
-      error: `Eve no pudo generar el plan con ${input.modelChoice}. Revisa su estado local y credenciales, o selecciona un proveedor configurado.`,
+      error: `Eve no pudo completar ${input.mode === "combine" ? "la combinación" : `el aporte de ${techniques[0].name}`} con ${input.modelChoice}. ${failureReason}`,
       code: "eve_model_unavailable",
     }, { status: 503 });
   }
@@ -148,7 +160,11 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
     const ids = parsed.success ? new Set(parsed.data.directions.map(({ id }) => id)) : new Set<string>();
     const titles = parsed.success ? new Set(parsed.data.directions.map(({ title }) => title.trim().toLocaleLowerCase())) : new Set<string>();
     const firstScreens = parsed.success ? new Set(parsed.data.directions.map(({ firstScreen }) => firstScreen.trim().toLocaleLowerCase())) : new Set<string>();
-    if (!parsed.success || ids.size !== parsed.data.directions.length || titles.size !== parsed.data.directions.length || firstScreens.size !== parsed.data.directions.length || parsed.data.directions.some((direction) =>
+    if (!parsed.success) {
+      const issues = parsed.error.issues.slice(0, 6).map(({ path, message: issueMessage }) => `${path.join(".") || "directions"}: ${issueMessage}`).join("; ");
+      throw new Error(`La salida no cumple el esquema (${issues}).`);
+    }
+    if (ids.size !== parsed.data.directions.length || titles.size !== parsed.data.directions.length || firstScreens.size !== parsed.data.directions.length || parsed.data.directions.some((direction) =>
       direction.designPlan.creativeDirection?.id !== direction.id ||
       !direction.designPlan.creativeSettings ||
       direction.designPlan.creativeSettings.objective !== input.brief.objective ||
@@ -157,7 +173,7 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
       direction.designPlan.creativeSettings.density !== input.brief.density ||
       !validateTechniqueCoverage(direction.designPlan, input.techniqueIds)
     )) {
-      throw new Error("Eve devolvió direcciones duplicadas o planes incompletos.");
+      throw new Error("La validación rechazó las alternativas: repiten id, título o hero, omiten DesignPlan/creativeSettings, no reflejan los controles del brief o no cubren los métodos.");
     }
 
     const directions = parsed.data.directions;
@@ -178,7 +194,7 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
     await updateTraceStatus(input.traceId, "direction-selection-pending");
     return NextResponse.json({ directions, traceId: input.traceId, techniqueIds: input.techniqueIds, modelChoice: input.modelChoice });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Eve no pudo proponer direcciones.";
+    const failureReason = safeFailureMessage(error);
     await recordTraceStep(input.traceId, {
       phase: "creative-direction-options",
       title: "Direcciones creativas · Eve",
@@ -187,12 +203,12 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
       model: input.modelChoice,
       userPrompt: message,
       status: "failed",
-      errorMessage: message.slice(0, 500),
+      errorMessage: failureReason.slice(0, 500),
       durationMs: Date.now() - startedAt,
     }).catch(() => undefined);
     await updateTraceStatus(input.traceId, "failed");
     return NextResponse.json({
-      error: `Eve no pudo proponer direcciones con ${input.modelChoice}. Revisa el estado local e inténtalo de nuevo.`,
+      error: `Eve no pudo validar las direcciones con ${input.modelChoice}. ${failureReason}`,
       code: "eve_directions_unavailable",
     }, { status: 503 });
   }
@@ -205,4 +221,15 @@ async function updateTraceStatus(traceId: string | undefined, status: string) {
   } catch {
     console.error("XPage generation trace status update failed", { traceId, status });
   }
+}
+
+function safeFailureMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : "Error desconocido de Eve.";
+  if (/api[_ -]?key|token|secret|authorization|bearer/i.test(message)) {
+    return "El proveedor rechazó la solicitud. Revisa el acceso o la sesión configurada en Eve.";
+  }
+  return message
+    .replace(/Bearer\s+\S+/gi, "Bearer [redactado]")
+    .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "[credencial redactada]")
+    .slice(0, 300);
 }

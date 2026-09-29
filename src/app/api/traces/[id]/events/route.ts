@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { recordTraceStep } from "@/lib/generation-traces";
+import { techniqueIdSchema } from "@/lib/schemas";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,12 @@ const eventSchema = z.discriminatedUnion("type", [
     type: z.literal("html-export"),
     landingId: z.string().uuid().optional(),
     filename: z.string().trim().min(1).max(180),
+  }),
+  z.object({
+    type: z.literal("method-contribution-edit"),
+    techniqueId: techniqueIdSchema,
+    decision: z.string().trim().min(1).max(1200),
+    artifact: z.string().trim().min(1).max(3000),
   }),
 ]);
 
@@ -56,6 +63,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       outputText: parsed.data.prompt,
       output: { directionId: parsed.data.directionId, prompt: parsed.data.prompt },
       decisionSummary: `Prompt actualizado para la dirección ${parsed.data.directionId}.`,
+    });
+  } else if (parsed.data.type === "method-contribution-edit") {
+    await recordTraceStep(id, {
+      eventType: "revision",
+      phase: "technique-contribution-edited",
+      title: `Aporte revisado · ${parsed.data.techniqueId}`,
+      output: { techniqueId: parsed.data.techniqueId, decision: parsed.data.decision, artifact: parsed.data.artifact },
+      decisionSummary: `Aporte de ${parsed.data.techniqueId} editado por el usuario.`,
+      references: [{ kind: "source", id: `technique:${parsed.data.techniqueId}` }],
     });
   } else {
     await recordTraceStep(id, {
