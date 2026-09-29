@@ -5,7 +5,8 @@
   "scripts": {
     "postinstall": "prisma generate",
     "predev": "prisma migrate deploy",
-    "dev": "next dev",
+    "dev": "node scripts/with-codex-path.cjs next dev",
+    "eve:dev": "node scripts/with-codex-path.cjs eve dev",
     "prestart": "prisma migrate deploy",
     "build": "next build",
     "start": "next start",
