@@ -3,6 +3,7 @@ import type { Brief, LandingCode } from "@/lib/schemas";
 import type { DesignPlan } from "@/lib/design-plan";
 import type { ModelChoice } from "@/lib/model-choice";
 import type { CreativeDirection } from "@/lib/creative-directions";
+import type { MediaAssetRecord } from "@/lib/media/types";
 
 export type PromptResult = {
   id: string;
@@ -26,7 +27,8 @@ export type ActiveLanding = {
   techniqueIds: TechniqueId[];
   prompt: string;
   traceId: string;
-  imageDataUrl: string | null;
   savedId: string | null;
   modelChoice: ModelChoice;
+  designPlan: DesignPlan | null;
+  mediaAssets: MediaAssetRecord[];
 };

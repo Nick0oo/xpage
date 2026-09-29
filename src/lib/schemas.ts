@@ -78,6 +78,12 @@ export const imageRequestSchema = z.object({
   brief: briefSchema,
   modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
   traceId: z.string().uuid().optional(),
+  destination: z.object({
+    savedLandingId: z.string().uuid(),
+    sectionId: z.string().regex(/^[a-z0-9-]{1,80}$/),
+    slotId: z.string().regex(/^[a-z0-9-]{1,80}$/),
+    altText: z.string().trim().max(300).optional(),
+  }).optional(),
 });
 
 export const traceCreateSchema = z.object({
@@ -97,6 +103,25 @@ export const savedLandingSchema = z.object({
   css: landingCodeSchema.shape.css,
   js: landingCodeSchema.shape.js,
   traceId: z.string().uuid().nullable().optional(),
+  mediaAssets: z.array(z.object({
+    id: z.string().uuid(),
+    type: z.enum(["image", "video"]),
+    sourceType: z.enum(["stock", "generated"]),
+    provider: z.string(),
+    providerAssetId: z.string(),
+    author: z.string(),
+    sourceUrl: z.string().url(),
+    creditUrl: z.string().url(),
+    license: z.string(),
+    mimeType: z.string(),
+    width: z.number().int().nullable(),
+    height: z.number().int().nullable(),
+    durationSeconds: z.number().int().nullable(),
+    sectionId: z.string(),
+    slotId: z.string(),
+    altText: z.string(),
+    createdAt: z.string().datetime(),
+  })).optional(),
   createdAt: z.string().datetime(),
 });
 

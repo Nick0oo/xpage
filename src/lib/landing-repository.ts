@@ -13,6 +13,25 @@ type LandingRecord = {
   js: string;
   traceId: string | null;
   createdAt: Date;
+  mediaAssets?: {
+    id: string;
+    type: string;
+    sourceType: string;
+    provider: string;
+    providerAssetId: string;
+    author: string;
+    sourceUrl: string;
+    creditUrl: string;
+    license: string;
+    mimeType: string;
+    width: number | null;
+    height: number | null;
+    durationSeconds: number | null;
+    sectionId: string;
+    slotId: string;
+    altText: string;
+    createdAt: Date;
+  }[];
 };
 
 function fromRecord(record: LandingRecord): SavedLanding {
@@ -26,6 +45,25 @@ function fromRecord(record: LandingRecord): SavedLanding {
     css: record.css,
     js: record.js,
     traceId: record.traceId,
+    mediaAssets: "mediaAssets" in record && Array.isArray(record.mediaAssets) ? record.mediaAssets.map((asset) => ({
+      id: asset.id,
+      type: asset.type,
+      sourceType: asset.sourceType,
+      provider: asset.provider,
+      providerAssetId: asset.providerAssetId,
+      author: asset.author,
+      sourceUrl: asset.sourceUrl,
+      creditUrl: asset.creditUrl,
+      license: asset.license,
+      mimeType: asset.mimeType,
+      width: asset.width,
+      height: asset.height,
+      durationSeconds: asset.durationSeconds,
+      sectionId: asset.sectionId,
+      slotId: asset.slotId,
+      altText: asset.altText,
+      createdAt: asset.createdAt.toISOString(),
+    })) : [],
     createdAt: record.createdAt.toISOString(),
   });
 }
@@ -98,13 +136,14 @@ export async function listSavedLandings() {
 
   const records = await prisma.savedLanding.findMany({
     orderBy: { createdAt: "desc" },
+    include: { mediaAssets: { where: { isCurrent: true }, orderBy: { createdAt: "asc" } } },
   });
   return records.map(fromRecord);
 }
 
 export async function getSavedLanding(id: string) {
   await ensureSavedLandingTrace(id);
-  const record = await prisma.savedLanding.findUnique({ where: { id } });
+  const record = await prisma.savedLanding.findUnique({ where: { id }, include: { mediaAssets: { where: { isCurrent: true }, orderBy: { createdAt: "asc" } } } });
   return record ? fromRecord(record) : null;
 }
 
@@ -137,6 +176,11 @@ export async function importLandingRecords(landings: SavedLanding[]) {
 }
 
 export async function deleteSavedLanding(id: string) {
+  const assets = await prisma.mediaAsset.findMany({ where: { savedLandingId: id }, select: { localPath: true, posterPath: true } });
   const result = await prisma.savedLanding.deleteMany({ where: { id } });
+  if (result.count) {
+    const { removeStoredMedia } = await import("@/lib/media/storage");
+    await Promise.all(assets.flatMap((asset) => [removeStoredMedia(asset.localPath), removeStoredMedia(asset.posterPath)]));
+  }
   return result.count > 0;
 }

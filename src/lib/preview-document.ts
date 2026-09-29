@@ -1,20 +1,23 @@
 import type { LandingCode } from "@/lib/schemas";
 
-const PREVIEW_CSP = [
+function previewCsp(relativeMedia = false) {
+  const mediaSource = relativeMedia ? "'self'" : "http://localhost:* http://127.0.0.1:*";
+  return [
   "default-src 'none'",
-  "base-uri 'none'",
+  `base-uri ${relativeMedia ? "'self'" : "'none'"}`,
   "object-src 'none'",
   "connect-src 'none'",
   "navigate-to 'none'",
   "form-action 'none'",
   "frame-src 'none'",
   "child-src 'none'",
-  "img-src data: blob:",
-  "media-src data: blob:",
+  `img-src data: blob: ${mediaSource}`,
+  `media-src data: blob: ${mediaSource}`,
   "font-src data: blob:",
   "style-src 'unsafe-inline'",
   "script-src 'unsafe-inline'",
-].join("; ");
+  ].join("; ");
+}
 
 export function escapeHtml(value: string) {
   return value
@@ -33,14 +36,16 @@ function escapeScriptContent(value: string) {
   return value.replace(/<\/script/gi, "<\\/script");
 }
 
-export function buildPreviewDocument(code: LandingCode) {
+export function buildPreviewDocument(code: LandingCode, options: { relativeMedia?: boolean } = {}) {
+  const base = options.relativeMedia ? '<base href="./">' : "";
   return `<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="${PREVIEW_CSP}">
+  <meta http-equiv="Content-Security-Policy" content="${previewCsp(options.relativeMedia)}">
   <meta name="referrer" content="no-referrer">
+  ${base}
   <title>${escapeHtml(code.title)}</title>
   <style>${escapeStyleContent(code.css)}</style>
 </head>
@@ -52,7 +57,8 @@ ${code.html}
 }
 
 export function openPreviewDocument(code: LandingCode) {
-  const blob = new Blob([buildPreviewDocument(code)], { type: "text/html;charset=utf-8" });
+  const localMediaHtml = code.html.replace(/(src|poster)="\/api\/media\/assets\//g, `$1="${window.location.origin}/api/media/assets/`);
+  const blob = new Blob([buildPreviewDocument({ ...code, html: localMediaHtml })], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   window.open(url, "_blank", "noopener,noreferrer");
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);

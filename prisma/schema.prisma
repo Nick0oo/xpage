@@ -8,7 +8,7 @@ datasource db {
 }
 
 model SavedLanding {
-  id               String   @id
+  id               String           @id
   title            String
   briefJson        String
   techniqueIdsJson String
@@ -19,34 +19,62 @@ model SavedLanding {
   createdAt        DateTime
   traceId          String?
   trace            GenerationTrace? @relation(fields: [traceId], references: [id], onDelete: SetNull)
+  mediaAssets      MediaAsset[]
+}
+
+model MediaAsset {
+  id              String       @id
+  type            String
+  sourceType      String
+  provider        String
+  providerAssetId String
+  author          String
+  sourceUrl       String
+  creditUrl       String
+  license         String
+  mimeType        String
+  width           Int?
+  height          Int?
+  durationSeconds Int?
+  localPath       String
+  posterPath      String?
+  sectionId       String
+  slotId          String
+  altText         String
+  isCurrent       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  savedLandingId  String
+  savedLanding    SavedLanding @relation(fields: [savedLandingId], references: [id], onDelete: Cascade)
+
+  @@index([savedLandingId, sectionId, slotId])
 }
 
 model GenerationTrace {
-  id          String                @id
-  category    String
-  title       String
-  contextJson String
-  status      String                @default("active")
-  rootTraceId String?
-  parentTraceId String?
-  sourceTraceId String?
-  executionId String @default("")
-  sequenceCounter Int @default(0)
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  steps       GenerationTraceStep[]
-  landings    SavedLanding[]
+  id              String                @id
+  category        String
+  title           String
+  contextJson     String
+  status          String                @default("active")
+  rootTraceId     String?
+  parentTraceId   String?
+  sourceTraceId   String?
+  executionId     String                @default("")
+  sequenceCounter Int                   @default(0)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  steps           GenerationTraceStep[]
+  landings        SavedLanding[]
 }
 
 model GenerationTraceStep {
   id                String          @id
   traceId           String
   sequence          Int
-  executionId       String @default("")
+  executionId       String          @default("")
   rootTraceId       String?
   parentTraceId     String?
   parentStepId      String?
-  eventType         String @default("step")
+  eventType         String          @default("step")
   skillVersionsJson String?
   decisionSummary   String?
   referencesJson    String?
@@ -66,6 +94,6 @@ model GenerationTraceStep {
   createdAt         DateTime        @default(now())
   trace             GenerationTrace @relation(fields: [traceId], references: [id], onDelete: Cascade)
 
-  @@index([traceId, sequence])
   @@unique([executionId, sequence])
+  @@index([traceId, sequence])
 }

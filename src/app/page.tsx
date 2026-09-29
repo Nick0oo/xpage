@@ -10,7 +10,7 @@ import { TechniqueSelector } from "@/components/studio/technique-selector";
 import { EveModelSelector } from "@/components/studio/eve-model-selector";
 import { CreativeDirectionPicker } from "@/components/studio/creative-direction-picker";
 import { Button } from "@/components/ui/button";
-import { CoverImageGenerator } from "@/components/preview/cover-image-generator";
+import { MediaWorkspace } from "@/components/media/media-workspace";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
 import type { TechniqueId } from "@/lib/techniques";
 import type { ActiveLanding, PromptResult } from "@/lib/studio-types";
@@ -83,9 +83,8 @@ export default function Home() {
   const [view, setView] = useState<"create" | "preview">("create");
   const [activeLanding, setActiveLanding] = useState<ActiveLanding | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
+  const [downloadError, setDownloadError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
-  const [imageLoading, setImageLoading] = useState(false);
-  const [imageError, setImageError] = useState("");
   const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
   const [creativeDirections, setCreativeDirections] = useState<CreativeDirection[]>([]);
   const [directionTraceId, setDirectionTraceId] = useState<string | null>(null);
@@ -391,11 +390,11 @@ export default function Home() {
         techniqueIds: result.techniqueIds,
         prompt: result.prompt,
         traceId: landingTraceId,
-        imageDataUrl: null,
         savedId: null,
         modelChoice: result.modelChoice,
+        designPlan: result.designPlan ?? result.creativeDirection?.designPlan ?? null,
+        mediaAssets: [],
       });
-      setImageError("");
       setSaveMessage("");
       setView("preview");
     } catch (error) {
@@ -405,39 +404,31 @@ export default function Home() {
     }
   }
 
-  async function generateCoverImage() {
+  async function downloadLanding() {
     if (!activeLanding) return;
-    setImageLoading(true);
-    setImageError("");
-
-    try {
-      const payload = await postJson<{ image: string; mediaType: string }>("/api/images", {
-        brief: activeLanding.brief,
-        modelChoice: activeLanding.modelChoice,
-        traceId: activeLanding.traceId,
-      });
-      if (
-        typeof payload.image !== "string" ||
-        typeof payload.mediaType !== "string" ||
-        !payload.mediaType.startsWith("image/")
-      ) {
-        throw new Error("OpenRouter no devolvió una imagen válida. Inténtalo de nuevo.");
+    setDownloadError("");
+    if (activeLanding.mediaAssets.length > 0) {
+      if (!activeLanding.savedId) {
+        setDownloadError("Guarda primero esta landing para empaquetar sus medios locales.");
+        return;
       }
-
-      setActiveLanding((current) =>
-        current
-          ? { ...current, imageDataUrl: `data:${payload.mediaType};base64,${payload.image}` }
-          : current,
-      );
-    } catch (error) {
-      setImageError(error instanceof Error ? error.message : "No se pudo generar la imagen.");
-    } finally {
-      setImageLoading(false);
+      try {
+        const response = await fetch(`/api/media/export?id=${encodeURIComponent(activeLanding.savedId)}`);
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+          throw new Error(typeof payload?.error === "string" ? payload.error : "No se pudo crear el paquete de medios.");
+        }
+        const url = URL.createObjectURL(await response.blob());
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = makeDownloadName(activeLanding.code.title).replace(/\.html$/, "-medios.zip");
+        anchor.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) {
+        setDownloadError(error instanceof Error ? error.message : "No se pudo crear el paquete de medios.");
+      }
+      return;
     }
-  }
-
-  function downloadLanding() {
-    if (!activeLanding) return;
     const blob = new Blob([buildPreviewDocument(activeLanding.code)], {
       type: "text/html;charset=utf-8",
     });
@@ -501,21 +492,28 @@ export default function Home() {
                 className="inline-flex h-8 cursor-pointer list-none items-center justify-center gap-1.5 rounded-lg border border-border bg-background px-2 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden sm:px-2.5"
               >
                 <ImagePlus size={15} aria-hidden="true" />
-                <span className="hidden sm:inline">Portada</span>
+                <span className="hidden sm:inline">Medios</span>
               </summary>
               <div className="absolute right-0 top-full mt-2 w-[min(24rem,calc(100vw-1.25rem))]">
-                <CoverImageGenerator
-                  imageDataUrl={activeLanding.imageDataUrl}
-                  loading={imageLoading}
-                  error={imageError}
-                  onGenerate={() => void generateCoverImage()}
+                <MediaWorkspace
+                  brief={activeLanding.brief}
+                  modelChoice={activeLanding.modelChoice}
+                  traceId={activeLanding.traceId}
+                  savedLandingId={activeLanding.savedId}
+                  designPlan={activeLanding.designPlan}
+                  assets={activeLanding.mediaAssets}
+                  onAssetAdded={(asset, html) => setActiveLanding((current) => current ? {
+                    ...current,
+                    code: { ...current.code, html },
+                    mediaAssets: [...current.mediaAssets.filter((item) => item.slotId !== asset.slotId || item.sectionId !== asset.sectionId), asset],
+                  } : current)}
                 />
               </div>
             </details>
 
-            <Button type="button" variant="outline" size="sm" onClick={downloadLanding} aria-label="Descargar HTML" title="Descargar HTML">
+            <Button type="button" variant="outline" size="sm" onClick={downloadLanding} aria-label={activeLanding.mediaAssets.length ? "Descargar paquete ZIP" : "Descargar HTML"} title={activeLanding.mediaAssets.length ? "Descargar paquete ZIP" : "Descargar HTML"}>
               <Download aria-hidden="true" />
-              <span className="hidden md:inline">HTML</span>
+              <span className="hidden md:inline">{activeLanding.mediaAssets.length ? "Paquete ZIP" : "HTML"}</span>
             </Button>
 
             <Link
@@ -556,6 +554,7 @@ export default function Home() {
               </Button>
             )}
           </div>
+          {downloadError ? <p role="alert" className="px-3 pb-2 text-xs text-destructive">{downloadError}</p> : null}
         </header>
 
         {saveMessage ? (

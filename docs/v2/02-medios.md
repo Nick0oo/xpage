@@ -1,42 +1,23 @@
 # Plan 02 · Imágenes y vídeos dentro de la landing
 
-**Objetivo:** buscar imágenes y clips gratuitos, generar imágenes por API y usar el activo elegido en la landing, la Biblioteca, la traza y la exportación. **No generar vídeo por IA.**
+**Objetivo:** buscar fotos y clips, guardar el medio elegido en la landing y conservarlo en preview, Biblioteca, traza y exportación. XPage no genera vídeo.
 
-**Depende de:** espacios de medios del plan 01 y esquema de traza del plan 03.
+## Implementación
 
-## Alcance y decisiones
+- Pexels es el conector de stock disponible para fotos y vídeos. La clave `PEXELS_API_KEY` solo se lee en servidor. Sin clave, con cuota agotada o sin resultados, Studio muestra un error recuperable; no cambia de proveedor en silencio. No se integró Pixabay en este corte.
+- Cada resultado muestra autor y origen. La persona elige explícitamente foto o clip, sección y espacio del `DesignPlan`. Si el HTML no tiene un marcador único que coincida con el plan, XPage no lo modifica.
+- La selección se descarga y valida en servidor. El archivo y, para vídeo, su póster se guardan bajo `data/assets`; SQLite guarda metadatos/rutas, nunca el binario. Sustituir un activo conserva la revisión anterior y marca cuál está vigente.
+- La preview carga medios desde rutas locales. Los clips usan controles, `playsinline` y `preload="metadata"`; no se reproducen automáticamente. La Biblioteca vuelve a cargar la selección y muestra sus créditos.
+- La exportación de una landing con medios es un ZIP con `index.html`, `assets/` y `CREDITOS.txt`; HTML y referencias de trazabilidad registran la exportación y los IDs de activos, no los bytes.
+- La generación opcional de imagen usa la herramienta Eve existente y transporte OpenRouter configurado por el usuario. Studio requiere confirmación antes de la solicitud porque puede consumir cuota o tener costo. No se activa automáticamente ni se afirma que sea gratis.
 
-- Búsqueda inicial: Pexels para fotos y vídeos; Pixabay como segundo conector si la integración inicial queda validada. Ambos requieren conservar enlace de origen y mostrar atribución del banco al presentar resultados de API. Verificar sus condiciones vigentes al implementar.
-- Generación de imagen: reutilizar primero el proveedor existente de `src/app/api/images/route.ts`, encapsulado tras una interfaz de proveedor. Avisar antes de una llamada que pueda costar dinero. No prometer una cuota gratuita permanente de generación.
-- Vídeo: búsqueda y elección de clips de banco gratuito. En la página, usar `<video>` con póster, reproducción silenciada si es fondo, controles cuando corresponda y alternativa para `prefers-reduced-motion`.
-- El usuario elige un resultado antes de colocarlo. Nunca tomar automáticamente el primer resultado de búsqueda como definitivo.
+## Límites y operación
 
-## Modelo y archivos previstos
+- Pexels necesita `PEXELS_API_KEY`. Sus cuotas y condiciones dependen de la cuenta; revisar [documentación de Pexels](https://www.pexels.com/api/documentation/) y [licencia](https://www.pexels.com/legal-pages/license/).
+- El paquete ZIP está limitado a 220 MB. El servidor devuelve un error recuperable si falta un archivo; vuelve a seleccionar ese medio antes de exportar.
+- No se implementaron generación de vídeo ni Pixabay. La exportación y el guardado son locales; no suben activos a un hosting.
+- La generación opcional usa una API externa y está sujeta al proveedor configurado. El binario de imagen no se copia a la traza.
 
-`MediaAsset` tendrá ID, `image|video`, `stock|generated`, proveedor, ID/URL del proveedor, autor, enlace de crédito, licencia o condiciones y fecha de consulta, prompt de generación cuando aplique, MIME, dimensiones/duración, ruta local, póster, alt/caption y `sectionId`/`slotId` de destino. El binario se guarda en un directorio local ignorado por Git, por ejemplo `xpage/data/assets/`; SQLite solo guarda metadatos y ruta. Limitar tamaño, tipo y URL de descarga.
+## Validación
 
-Crear adaptadores de búsqueda en `src/lib/media/providers/`, almacenamiento/validación en `src/lib/media/`, rutas servidor en `src/app/api/media/` y controles en `src/components/media/`. Añadir el directorio de binarios a `.gitignore`. El worker puede ajustar nombres respetando el contrato compartido.
-
-## Secuencia del worker
-
-1. Consultar documentación y licencias de los bancos; verificar cómo descargar cada tipo de archivo y qué atribución mostrar. Guardar API keys solo en servidor.
-2. Implementar búsqueda paginada con filtros básicos (consulta, orientación para imagen, tipo y duración para vídeo cuando la API lo permita), estado sin resultados y error de cuota. Mostrar fuente y creador junto a cada tarjeta.
-3. Implementar selección y descarga local controlada. Vincular el activo al espacio de una sección. Para imagen generada, guardar prompt, modelo, coste estimado si se puede conocer y archivo; dejar de guardar base64 en nuevas trazas.
-4. Renderizar activos en preview aislado mediante una ruta local permitida explícitamente por la CSP, sin abrir conexiones arbitrarias desde el HTML generado. Probar tanto `localhost` como `127.0.0.1` si ambos están soportados.
-5. Exportar imágenes dentro del HTML cuando el tamaño sea razonable; para vídeo, ofrecer un paquete con HTML, clip, póster y créditos relativos. No generar un HTML que funcione solo mientras XPage esté abierto sin avisar.
-
-## Aceptación
-
-- Buscar y elegir una foto y un vídeo los coloca en secciones correctas; la vista previa y la Biblioteca los muestran después de recargar.
-- Una imagen generada entra en un espacio real de la landing y mantiene sus datos de generación.
-- La traza muestra consulta/prompt, opciones elegidas, proveedor, autor/licencia y destino; SQLite no recibe el binario/base64 nuevo.
-- Preview y exportación reproducen o muestran medios sin romper el aislamiento del iframe. El vídeo respeta movimiento reducido.
-- Sin clave de banco o al llegar a un límite, el resto del Studio funciona y explica cómo continuar.
-- `pnpm lint`, `pnpm typecheck`, `pnpm build` y una prueba manual por cada fuente integrada pasan.
-
-**Frontera:** el worker no construye generadores de vídeo ni un mercado propio de activos. El plan 07 hará la revisión final de exportaciones y créditos.
-
-## Fuentes de implementación
-
-- [Pexels API](https://www.pexels.com/api/documentation/) y [licencia](https://www.pexels.com/legal-pages/license/).
-- [Pixabay API](https://pixabay.com/api/docs/) y [licencia](https://pixabay.com/service/license-summary/).
+La integración admite comprobar UI, schema y compilación sin hacer llamadas con costo. El smoke de búsqueda/descarga Pexels requiere una clave válida; la generación de imagen no debe probarse automáticamente porque podría consumir cuota.

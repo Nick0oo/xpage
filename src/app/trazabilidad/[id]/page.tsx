@@ -169,6 +169,12 @@ export default async function TraceDetailPage({ params }: PageProps<"/trazabilid
                 const contributions = output && Array.isArray(output.contributions) ? output.contributions.flatMap((item) => asRecord(item) ? [asRecord(item)!] : []) : [];
                 const claims = output && Array.isArray(output.claims) ? output.claims.flatMap((item) => asRecord(item) ? [asRecord(item)!] : []) : [];
                 const outputCode = landingOutput(output);
+                const mediaAssetId = output && typeof output.assetId === "string" && /^[0-9a-f-]{36}$/.test(output.assetId)
+                  ? output.assetId
+                  : output && typeof output.imageReference === "string" && /^[0-9a-f-]{36}$/.test(output.imageReference)
+                    ? output.imageReference
+                    : null;
+                const mediaType = output && output.type === "video" ? "video" : "image";
                 const image = output && typeof output.image === "string" && typeof output.mediaType === "string"
                   ? { base64: output.image, mediaType: output.mediaType }
                   : null;
@@ -234,6 +240,23 @@ export default async function TraceDetailPage({ params }: PageProps<"/trazabilid
                             className="aspect-video w-full object-cover"
                           />
                         </div>
+                      ) : null}
+
+                      {mediaAssetId ? (
+                        <section aria-label="Medio colocado en la landing" className="grid gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.8fr)] sm:items-center">
+                          {mediaType === "video" ? (
+                            <video src={`/api/media/assets/${mediaAssetId}`} poster={`/api/media/assets/${mediaAssetId}?poster=1`} controls playsInline preload="metadata" className="aspect-video w-full rounded-md bg-muted object-cover" />
+                          ) : (
+                            <Image src={`/api/media/assets/${mediaAssetId}`} alt={output && typeof output.altText === "string" ? output.altText : "Imagen seleccionada para la landing"} width={960} height={540} unoptimized loading="lazy" className="aspect-video w-full rounded-md bg-muted object-cover" />
+                          )}
+                          <div className="min-w-0 space-y-1 text-sm">
+                            <p className="font-medium">{mediaType === "video" ? "Video de stock" : "Imagen seleccionada"}</p>
+                            <p className="break-words text-xs text-muted-foreground">{output && typeof output.author === "string" ? output.author : output && typeof output.model === "string" ? output.model : "Activo local"}</p>
+                            {output && typeof output.sectionId === "string" && typeof output.slotId === "string" ? <p className="text-xs text-muted-foreground">Sección {output.sectionId} · espacio {output.slotId}</p> : null}
+                            {output && typeof output.sourceUrl === "string" && output.sourceUrl.startsWith("https://") ? <a href={output.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex text-xs text-primary underline">Ver fuente y licencia</a> : null}
+                            {output && typeof output.estimatedCostUsd === "number" ? <p className="text-xs text-muted-foreground">Costo estimado: US$ {output.estimatedCostUsd.toFixed(4)}</p> : output?.estimatedCostUsd === null ? <p className="text-xs text-muted-foreground">Costo: no disponible; revisa el proveedor configurado.</p> : null}
+                          </div>
+                        </section>
                       ) : null}
 
                       {step.systemPrompt ? (

@@ -18,6 +18,7 @@
 /.eve/
 /agent/.eve/
 /out/
+/data/assets/
 
 # production
 /build
