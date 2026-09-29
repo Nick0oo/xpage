@@ -36,3 +36,12 @@ El usuario debe poder salir y volver sin perder plan, activos o revisión vigent
 ## Cierre Git
 
 En este mismo clon, simular el PR de la rama de integración con un merge local hacia `develop`, resolver conflictos y volver a ejecutar los controles anteriores. No usar worktrees. `main` recibe solo el conjunto ya validado conforme al flujo Git acordado.
+
+## Operación local
+
+- La landing guardada en SQLite es la unidad de trabajo reabrible. Conserva brief, técnicas, prompt, código, dirección creativa elegida, traza, medios asociados y revisión vigente. La columna de dirección es opcional para leer landings anteriores.
+- Los archivos binarios viven en `data/assets/`; SQLite guarda metadatos y rutas. Para respaldar, cierra XPage y copia `prisma/xpage.db` junto con `data/assets/`.
+- Las páginas con activos se exportan como ZIP con medios relativos y créditos; las páginas sin activos, como HTML. Ambos recorridos escriben evento de exportación en la traza cuando existe.
+- Eve usa la sesión local de Codex para GPT-5.6 Luna o GPT-6 Luna. Gemini, Qwen, Pexels y la imagen OpenRouter requieren las claves opcionales descritas en `.env.example`.
+- Sin `data-xpage-section` único y válido, una landing histórica permanece visible y descargable, pero la propuesta de edición puntual devuelve conflicto y la UI explica por qué.
+- Las descargas se mantienen locales. XPage no sincroniza proyectos ni datos con un servicio propio.

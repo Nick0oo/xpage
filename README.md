@@ -1,81 +1,54 @@
 # XPage
 
-XPage convierte un brief en prompts de landing basados en ocho técnicas de diseño. Puedes editar y combinar prompts, generar una página, previsualizar e inspeccionar su HTML, CSS y JavaScript, descargarla como un archivo `.html` y guardarla en la Biblioteca local.
+XPage es un estudio local para planear, construir y ajustar landings con Eve. Reúne brief, técnicas, dirección creativa, generación HTML, medios, editor por secciones, trazabilidad, Biblioteca y exportación.
 
-Las landings guardadas se almacenan en una base SQLite local con Prisma. El archivo `prisma/xpage.db` sobrevive al reiniciar Next.js y está excluido de Git.
+## Requisitos y arranque
 
-## Requisitos
+- Node.js 24 o posterior y pnpm 10.
+- Codex CLI instalado en Windows y sesión local de ChatGPT/Codex iniciada. XPage detecta el ejecutable nativo de Codex para Eve; no modifica el PATH global.
+- Las claves de Gemini, OpenRouter y Pexels son opcionales y solo se necesitan al elegir esos servicios.
 
-- Node.js 22 o posterior (se recomienda Node.js 24 LTS para AI SDK 7).
-- pnpm 10 o posterior.
-- Una clave de Gemini, una clave de OpenRouter o ambas.
-
-## Inicio local
-
-Desde esta carpeta (`xpage/`):
+Desde esta carpeta:
 
 ```bash
 pnpm install
-```
-
-Copia `.env.example` a `.env.local` y completa las claves que quieras usar:
-
-```dotenv
-GOOGLE_GENERATIVE_AI_API_KEY=tu_clave_de_gemini
-GEMINI_MODEL=gemini-3.8-flash
-OPENROUTER_API_KEY=tu_clave_de_openrouter
-OPENROUTER_MODEL=qwen/qwen3.8-27b:free
-OPENROUTER_FALLBACK_MODEL=z-ai/glm-5.2:free
-OPENROUTER_IMAGE_MODEL=recraft/recraft-v4.1-flash
-OPENROUTER_IMAGE_FALLBACK_MODEL=meta/muse-image
-```
-
-Las claves solo se leen en el servidor. No las pongas en variables `NEXT_PUBLIC_*` ni las subas a Git. Después, inicia Next.js:
-
-```bash
 pnpm dev
 ```
 
-Abre [http://localhost:3000](http://localhost:3000).
+Abre http://localhost:3000. Si Eve no encuentra una sesión local, inicia sesión con `pnpm eve:dev` y el comando `/login`; luego vuelve a XPage. No copies tokens a `.env`.
 
-Al iniciar `pnpm dev`, XPage aplica las migraciones pendientes y conserva las páginas guardadas en `prisma/xpage.db`. Si cambias el esquema, crea y aplica una migración con:
+## Modelos y servicios
 
-```bash
-pnpm db:migrate
-```
+El selector de Studio ofrece GPT-5.6 Luna y GPT-6 Luna mediante Eve/Codex, además de Gemini y Qwen. La selección explícita se mantiene durante el flujo; un error del proveedor se muestra para permitir reintentar o cambiarlo. GPT-6 requiere acceso habilitado en la cuenta local.
 
-Puedes inspeccionar la base local con `pnpm db:studio`. No borres `prisma/xpage.db` si quieres conservar la Biblioteca.
+Gemini usa `GOOGLE_GENERATIVE_AI_API_KEY` y `GEMINI_MODEL`. Qwen usa `OPENROUTER_API_KEY` y `OPENROUTER_MODEL`. Pexels usa `PEXELS_API_KEY` para buscar fotos y clips. XPage no genera vídeo. La generación opcional de imagen usa OpenRouter y requiere confirmación en Studio; puede consumir cuota o tener costo. La imagen se guarda como activo local, no como dato binario en la traza.
 
-## Proveedores de IA
+Copia `.env.example` a `.env.local` y completa solo los servicios que vas a usar. Las variables son de servidor: no las declares como `NEXT_PUBLIC_*` ni compartas el archivo.
 
-- Las solicitudes de texto prueban Gemini primero. Si Gemini responde con saturación o límite (`503` o `429`), XPage prueba Qwen y, si Qwen también se satura, GLM. Si falta la clave de Gemini, usa la misma cadena de OpenRouter directamente.
-- Qwen y GLM son variantes gratuitas. OpenRouter publica un límite del plan gratuito de 50 solicitudes diarias, sujeto a cambios.
-- Cada acción de texto puede usar hasta 3 llamadas. No hay otros reintentos automáticos. Los reintentos manuales inician una acción nueva.
-- La portada es opcional y usa Recraft V4.1 Flash (aprox. US$0.007 por imagen) y Muse Image (US$0.01) solo si Recraft se satura. Estos modelos de imagen no son gratuitos. La imagen queda en memoria durante la sesión; descárgala para conservarla. No se incrusta en el HTML ni se guarda en la Biblioteca.
+## Recorrido
 
-## Uso
+1. Completa el brief, elige técnicas y genera direcciones creativas.
+2. Selecciona una dirección, revisa los aportes y ajusta el prompt antes de construir.
+3. Guarda la landing en Biblioteca para conservar código, dirección elegida, traza y revisión.
+4. Busca un medio o solicita una imagen opcional; asigna el resultado a una sección y espacio del plan.
+5. En el editor, selecciona una sección marcada, pide una propuesta y compara antes de aplicarla. Los cambios se pueden deshacer. Las landings históricas sin marcadores siguen abriendo y descargándose, pero no admiten edición puntual.
+6. Exporta HTML independiente o ZIP con medios locales y `CREDITOS.txt`.
 
-1. Completa el brief con el tema, la oferta, el público y el tono.
-2. Selecciona una o más técnicas. XPage genera un prompt por técnica, en secuencia.
-3. Edita un prompt y construye la landing. El proveedor de texto sigue el orden descrito arriba.
-4. Revisa la vista previa aislada, inspecciona y copia sus tres archivos, descarga el HTML o guarda la página.
-5. En la vista previa, puedes generar y descargar una imagen de portada.
+## Datos locales y respaldo
 
-## Alcance del MVP
+XPage no tiene cuentas ni sincronización. La Biblioteca usa `prisma/xpage.db`; los binarios de medios están en `data/assets/`. Ambos directorios se excluyen de Git. Para respaldar una instalación, cierra XPage y copia la base SQLite y toda la carpeta `data/assets/` a un lugar seguro. Restaurar solo la base sin los activos conserva metadatos, pero los archivos asociados no estarán disponibles. Consulta [operación y datos locales](docs/v2/07-integracion-producto.md).
 
-- La Biblioteca guarda únicamente las landings que marques manualmente en SQLite local. No hay cuentas, sincronización ni historial automático de llamadas a la IA.
-- La primera vez que abras la Biblioteca, XPage importa las páginas antiguas de `localStorage` a SQLite y conserva la copia original del navegador.
-- La vista previa bloquea conexiones y recursos remotos dentro de un `iframe` con sandbox. Las landings generadas no cargan imágenes remotas; la portada se obtiene y descarga por separado.
-- La descarga HTML integra el código de la landing. La imagen no se añade al archivo descargado.
-
-Modelos y límites: [Qwen gratis](https://openrouter.ai/qwen/qwen3.8-27b:free), [GLM gratis](https://openrouter.ai/z-ai/glm-5.2:free), [Recraft V4.1 Flash](https://openrouter.ai/recraft/recraft-v4.1-flash), [Muse Image](https://openrouter.ai/meta/muse-image) y [plan gratuito de OpenRouter](https://openrouter.ai/pricing/).
+El ZIP de una landing con medios incluye `index.html`, archivos relativos bajo `assets/` y créditos. Sin medios, la descarga es un HTML autocontenido. Las exportaciones se registran en trazabilidad cuando hay una traza asociada.
 
 ## Comandos
 
 ```bash
-pnpm dev       # desarrollo local
-pnpm lint      # revisión estática
-pnpm typecheck # comprobación de tipos
-pnpm build     # compilación de producción
-pnpm start     # iniciar la compilación de producción
+pnpm dev       # Next.js y Eve en local
+pnpm eve:dev   # sesión local de Eve/Codex y /login
+pnpm lint
+pnpm typecheck
+pnpm build
+pnpm start
+pnpm db:migrate
+pnpm db:studio
 ```

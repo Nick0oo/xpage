@@ -20,6 +20,11 @@ const eventSchema = z.discriminatedUnion("type", [
     directionId: z.string().regex(/^[a-z0-9-]+$/),
     prompt: z.string().trim().min(1).max(12_000),
   }),
+  z.object({
+    type: z.literal("html-export"),
+    landingId: z.string().uuid().optional(),
+    filename: z.string().trim().min(1).max(180),
+  }),
 ]);
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -29,7 +34,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
   const parsed = eventSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "El evento de dirección o edición no es válido." }, { status: 400 });
+    return NextResponse.json({ error: "El evento de dirección, edición o exportación no es válido." }, { status: 400 });
   }
   const trace = await prisma.generationTrace.findUnique({ where: { id }, select: { id: true } });
   if (!trace) return NextResponse.json({ error: "No encontramos esta trazabilidad." }, { status: 404 });
@@ -43,7 +48,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       output: parsed.data.direction,
       decisionSummary: `${parsed.data.direction.title}: ${parsed.data.direction.structuralDifference.join("; ")}`,
     });
-  } else {
+  } else if (parsed.data.type === "prompt-edit") {
     await recordTraceStep(id, {
       eventType: "revision",
       phase: "creative-prompt-edited",
@@ -51,6 +56,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       outputText: parsed.data.prompt,
       output: { directionId: parsed.data.directionId, prompt: parsed.data.prompt },
       decisionSummary: `Prompt actualizado para la dirección ${parsed.data.directionId}.`,
+    });
+  } else {
+    await recordTraceStep(id, {
+      eventType: "export",
+      phase: "html-export",
+      title: "HTML de landing exportado",
+      output: { filename: parsed.data.filename },
+      references: parsed.data.landingId ? [{ kind: "landing", id: parsed.data.landingId }] : [],
     });
   }
   return NextResponse.json({ recorded: true });

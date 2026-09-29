@@ -112,3 +112,12 @@ export async function deleteLanding(id: string): Promise<boolean> {
   );
   return payload.deleted;
 }
+
+export async function recordHtmlExport(traceId: string | null | undefined, landingId: string | null, filename: string) {
+  if (!traceId) return;
+  await requestJson<{ recorded: boolean }>(`/api/traces/${encodeURIComponent(traceId)}/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: "html-export", landingId: landingId ?? undefined, filename }),
+  }).catch(() => undefined);
+}

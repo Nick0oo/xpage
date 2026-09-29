@@ -15,7 +15,7 @@ import { MediaWorkspace } from "@/components/media/media-workspace";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
 import type { TechniqueId } from "@/lib/techniques";
 import type { ActiveLanding, PromptResult } from "@/lib/studio-types";
-import { saveLanding } from "@/lib/landing-storage";
+import { recordHtmlExport, saveLanding } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName } from "@/lib/preview-document";
 import { DEFAULT_MODEL_CHOICE, type ModelChoice } from "@/lib/model-choice";
 import { creativeDirectionsResponseSchema, type CreativeDirection } from "@/lib/creative-directions";
@@ -431,6 +431,7 @@ export default function Home() {
       }
       return;
     }
+    await recordHtmlExport(activeLanding.traceId, activeLanding.savedId, makeDownloadName(activeLanding.code.title));
     const blob = new Blob([buildPreviewDocument(activeLanding.code)], {
       type: "text/html;charset=utf-8",
     });

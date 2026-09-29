@@ -8,7 +8,7 @@ import { useParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { LandingPreview } from "@/components/preview/landing-preview";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { getLanding } from "@/lib/landing-storage";
+import { getLanding, recordHtmlExport } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName, openPreviewDocument } from "@/lib/preview-document";
 import type { SavedLanding } from "@/lib/schemas";
 
@@ -68,6 +68,7 @@ export default function SavedLandingPage() {
       }
       return;
     }
+    await recordHtmlExport(landing.traceId, landing.id, makeDownloadName(landing.title));
     const { title, html, css, js } = landing;
     const blob = new Blob(
       [buildPreviewDocument({ title, html, css, js })],
