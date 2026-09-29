@@ -8,7 +8,7 @@ datasource db {
 }
 
 model SavedLanding {
-  id               String           @id
+  id               String                @id
   title            String
   briefJson        String
   techniqueIdsJson String
@@ -18,8 +18,47 @@ model SavedLanding {
   js               String
   createdAt        DateTime
   traceId          String?
-  trace            GenerationTrace? @relation(fields: [traceId], references: [id], onDelete: SetNull)
+  sectionRevision  Int                   @default(0)
+  trace            GenerationTrace?      @relation(fields: [traceId], references: [id], onDelete: SetNull)
   mediaAssets      MediaAsset[]
+  sectionRevisions SectionRevision[]
+  sectionProposals SectionEditProposal[]
+}
+
+model SectionRevision {
+  id               String       @id
+  savedLandingId   String
+  revision         Int
+  parentRevisionId String?
+  sourceRevisionId String?
+  sectionId        String?
+  summary          String
+  html             String
+  css              String
+  js               String
+  createdAt        DateTime     @default(now())
+  savedLanding     SavedLanding @relation(fields: [savedLandingId], references: [id], onDelete: Cascade)
+
+  @@unique([savedLandingId, revision])
+  @@index([savedLandingId, createdAt])
+}
+
+model SectionEditProposal {
+  id               String       @id
+  savedLandingId   String
+  baseRevision     Int
+  baseFingerprint  String
+  sectionId        String
+  techniqueIdsJson String
+  modelChoice      String
+  instruction      String
+  patchJson        String
+  status           String       @default("pending")
+  revisionId       String?
+  createdAt        DateTime     @default(now())
+  savedLanding     SavedLanding @relation(fields: [savedLandingId], references: [id], onDelete: Cascade)
+
+  @@index([savedLandingId, createdAt])
 }
 
 model MediaAsset {

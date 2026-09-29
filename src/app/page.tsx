@@ -9,6 +9,7 @@ import { PromptResults } from "@/components/studio/prompt-results";
 import { TechniqueSelector } from "@/components/studio/technique-selector";
 import { EveModelSelector } from "@/components/studio/eve-model-selector";
 import { CreativeDirectionPicker } from "@/components/studio/creative-direction-picker";
+import { SectionEditorWorkspace } from "@/components/studio/section-editor-workspace";
 import { Button } from "@/components/ui/button";
 import { MediaWorkspace } from "@/components/media/media-workspace";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
@@ -563,12 +564,11 @@ export default function Home() {
           </p>
         ) : null}
 
-        <iframe
-          title={`Página completa: ${activeLanding.code.title}`}
-          srcDoc={buildPreviewDocument(activeLanding.code)}
-          sandbox="allow-scripts"
-          referrerPolicy="no-referrer"
-          className="min-h-0 w-full flex-1 border-0 bg-white"
+        <SectionEditorWorkspace
+          landingId={activeLanding.savedId}
+          code={activeLanding.code}
+          modelChoice={activeLanding.modelChoice}
+          onApplied={(code) => setActiveLanding((current) => current ? { ...current, code } : current)}
         />
       </div>
     );
