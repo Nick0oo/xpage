@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { AlertCircle, ArrowDownLeft, Check, LoaderCircle, MousePointer2, RotateCcw, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildPreviewDocument } from "@/lib/preview-document";
@@ -84,7 +84,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
-  const [nonce, setNonce] = useState("");
+  const nonce = useId();
   const [state, setState] = useState<EditorState | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
   const [selectedTechniqueIds, setSelectedTechniqueIds] = useState<TechniqueId[]>(["human-copy"]);
@@ -109,12 +109,19 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
   }, [landingId]);
 
   useEffect(() => {
-    setNonce(crypto.randomUUID());
-  }, []);
-
-  useEffect(() => {
-    void refreshState();
-  }, [refreshState, code.html, code.css, code.js]);
+    if (!landingId) return;
+    let cancelled = false;
+    void requestJson<EditorState>(`/api/section-edits?landingId=${encodeURIComponent(landingId)}`)
+      .then((result) => {
+        if (cancelled) return;
+        setState(result);
+        setSelectedSectionId((current) => current && !result.sections.some((item) => item.id === current && item.editable) ? null : current);
+      })
+      .catch((loadError: unknown) => {
+        if (!cancelled) setError(loadError instanceof Error ? loadError.message : "No se pudo preparar el editor.");
+      });
+    return () => { cancelled = true; };
+  }, [landingId, code.html, code.css, code.js]);
 
   useEffect(() => {
     if (!nonce) return;
