@@ -32,3 +32,27 @@ Crear una ficha de investigación versionada por método, cerca de su skill, con
 - `pnpm lint`, `pnpm typecheck`, `pnpm build` y comprobación de migración con copia de datos de prueba pasan.
 
 **Frontera:** el worker crea registro y visualización; no decide la política creativa ni los conectores de bancos.
+
+## Contrato aditivo publicado
+
+`src/lib/generation-traces.ts` exporta `recordTraceStep(traceId, input)` y los tipos `TraceStepInput` y `TraceReference`; `recordProviderAttempts` acepta `executionId` y `references`. Los campos nuevos son opcionales para mantener los escritores existentes. Un worker puede registrar, por ejemplo:
+
+```ts
+await recordTraceStep(traceId, {
+  executionId,
+  parentStepId,
+  eventType: "revision",
+  phase: "section-edit",
+  title: "Sección revisada",
+  decisionSummary: "Se aclaró el CTA según el brief.",
+  skillVersions: { "human-copy": "1.0.0" },
+  references: [
+    { kind: "section", id: sectionId, label: "Hero" },
+    { kind: "media-asset", id: assetId, label: "Imagen hero" },
+  ],
+});
+```
+
+Cada llamada asigna su secuencia dentro de una transacción y persiste el evento junto con el contador; `id` opcional permite reintento idempotente. Los eventos clonados conservan `parentTraceId` y `parentStepId`, y las trazas mantienen raíz, origen y ejecución. Las referencias aceptan `sourceType` (`brief`, `documento`, `web`, `proveedor`) y `claimStatus` (`provided`, `external-evidence`, `hypothesis`, `inference`). Guardar síntesis y evidencia verificable; nunca cadena de pensamiento. Las imágenes nuevas no se persisten como base64: pasar el ID real de `MediaAsset` en `references` cuando el worker de medios lo entregue. El marcador histórico base64 sigue siendo legible en la vista.
+
+La migración añade columnas con defaults seguros y rellena la raíz/ejecución de los registros existentes sin reinterpretar sus decisiones. `listGenerationTraces()` incluye trazas sin construcción, como procesos prompt-only e incompletos.
