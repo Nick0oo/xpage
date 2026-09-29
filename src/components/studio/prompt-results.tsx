@@ -55,7 +55,7 @@ export function PromptResults({
                     <span className="text-xs tabular-nums text-muted-foreground">0{index + 1}</span>
                     <span className="truncate">{result.combined ? "Prompt combinado" : names[0]}</span>
                   </CardTitle>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{names.join(" · ")}</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{names.join(" · ")} · {result.modelChoice}</p>
                 </div>
                 {isLoading ? (
                   <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
@@ -76,7 +76,7 @@ export function PromptResults({
                     <p className="text-sm text-destructive">{result.error}</p>
                     <Button variant="outline" size="sm" onClick={() => onRetry(result.id)} disabled={activeResultId !== null}>
                       <RefreshCw size={14} aria-hidden="true" />
-                      Reintentar · hasta 3 llamadas
+                      Reintentar con {result.modelChoice}
                     </Button>
                   </div>
                 ) : null}
@@ -94,7 +94,7 @@ export function PromptResults({
                 {result.status === "ready" ? (
                   <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
                     <p className="text-xs font-semibold">
-                      {result.generationMode === "eve-design-plan" ? "Plan estructurado por Eve" : "Prompt de respaldo · plan estructurado no disponible"}
+                      {result.generationMode === "eve-design-plan" ? `DesignPlan verificado · ${result.modelChoice}` : `Resultado guardado · ${result.modelChoice}`}
                     </p>
                     {result.designPlan ? (
                       <>
@@ -114,16 +114,34 @@ export function PromptResults({
                             </li>
                           ))}
                         </ul>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {result.designPlan.contributions.map((item) => (
+                            <article key={`${item.techniqueId}-detail`} className="rounded-lg border border-border bg-background p-3">
+                              <h3 className="text-xs font-semibold">{techniques.find(({ id }) => id === item.techniqueId)?.name}</h3>
+                              <p className="mt-1 text-xs leading-5">{item.decision}</p>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">Aporte: {item.artifact}</p>
+                              {item.tensions.length > 0 ? <p className="mt-1 text-xs leading-5 text-muted-foreground">Tensión: {item.tensions.join("; ")} {item.resolution ? `· Resolución: ${item.resolution}` : ""}</p> : null}
+                            </article>
+                          ))}
+                        </div>
+                        {result.designPlan.creatorCritic ? (
+                          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                            <p className="text-xs font-semibold">Revisión creador · crítico</p>
+                            <p className="mt-1 text-xs leading-5"><span className="font-medium">Propuesta:</span> {result.designPlan.creatorCritic.proposal}</p>
+                            <p className="mt-1 text-xs leading-5">{result.designPlan.creatorCritic.revision}</p>
+                            {result.designPlan.creatorCritic.findings.length > 0 ? <p className="mt-1 text-xs leading-5 text-muted-foreground">Hallazgos resueltos: {result.designPlan.creatorCritic.findings.join("; ")}</p> : null}
+                          </div>
+                        ) : null}
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground">El texto editable se generó con el proveedor alternativo. No hay un DesignPlan validado para este resultado.</p>
+                      <p className="text-xs text-muted-foreground">El texto editable se conserva de una generación anterior. Las nuevas generaciones usan Eve y requieren un DesignPlan válido.</p>
                     )}
                   </div>
                 ) : null}
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="text-xs text-muted-foreground">Construir esta landing realiza hasta 3 llamadas adicionales.</p>
+                  <p className="text-xs text-muted-foreground">Eve construirá la landing con {result.modelChoice}; puedes seguir editando el prompt antes.</p>
                     <Link
                       href={`/trazabilidad/${result.traceId}`}
                       className="mt-2 inline-flex min-h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-primary hover:bg-accent"

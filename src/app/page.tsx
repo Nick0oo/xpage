@@ -364,6 +364,7 @@ export default function Home() {
     try {
       const payload = await postJson<{ image: string; mediaType: string }>("/api/images", {
         brief: activeLanding.brief,
+        modelChoice: activeLanding.modelChoice,
         traceId: activeLanding.traceId,
       });
       if (
@@ -549,6 +550,8 @@ export default function Home() {
           </p>
         </section>
 
+        <EveModelSelector value={modelChoice} onChange={setModelChoice} />
+
         <nav aria-label="Progreso de creación" className="rounded-2xl border border-border bg-card p-2 sm:p-3">
           <ol className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {([
@@ -622,7 +625,7 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Etapa 02 · Método</p>
                 <h2 id="technique-heading" className="mt-1 font-display text-2xl sm:text-3xl">Elige cómo diseñar tu página</h2>
                 <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Selecciona una o varias técnicas. Abre «Qué hará en tu prompt» para ver cómo influye cada una.
+                  Selecciona una o varias técnicas. Abre cada método para ver su propósito, entradas y aporte.
                 </p>
               </div>
               <span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
@@ -631,8 +634,6 @@ export default function Home() {
             </div>
 
             <TechniqueSelector selected={selectedIds} disabled={busy} onToggle={toggleTechnique} />
-            <EveModelSelector value={modelChoice} onChange={setModelChoice} />
-
             <div className="grid gap-3 sm:grid-cols-2">
               <section className="flex flex-col rounded-2xl border border-border bg-card p-4 sm:p-5">
                 <div className="flex items-center gap-2 text-primary">
@@ -640,10 +641,10 @@ export default function Home() {
                   <h3 className="text-sm font-semibold text-foreground">Probar técnicas por separado</h3>
                 </div>
                 <p className="mt-2 min-h-10 text-sm leading-5 text-muted-foreground">
-                  Crea un prompt independiente por técnica. Así puedes comparar enfoques antes de elegir.
+                  Eve crea un DesignPlan y un prompt editable para cada técnica seleccionada, uno después de otro.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  {selectedCount > 0 ? `${selectedCount} prompt${selectedCount === 1 ? "" : "s"} · hasta ${selectedCount * 3} llamadas de IA` : "Selecciona al menos una técnica"}
+                  {selectedCount > 0 ? `${selectedCount} resultado${selectedCount === 1 ? "" : "s"} · ${modelChoice}` : "Selecciona al menos una técnica"}
                 </p>
                 <Button type="button" className="mt-4 w-full" onClick={() => void generateIndividualPrompts()} disabled={busy || selectedCount === 0}>
                   {batchGenerating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
@@ -657,10 +658,10 @@ export default function Home() {
                   <h3 className="text-sm font-semibold text-foreground">Combinar técnicas</h3>
                 </div>
                 <p className="mt-2 min-h-10 text-sm leading-5 text-muted-foreground">
-                  Une las instrucciones elegidas en un solo prompt para que trabajen juntas desde el inicio.
+                  Un plan de Eve integra las técnicas, resuelve tensiones y genera un solo prompt para la landing.
                 </p>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Un prompt combinado · hasta 3 llamadas de IA
+                  {selectedCount >= 2 ? `${selectedCount} técnicas · ${modelChoice}` : "Selecciona al menos dos técnicas"}
                 </p>
                 <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => void generateCombinedPrompt()} disabled={busy || selectedCount < 2}>
                   {batchGenerating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <GitBranch aria-hidden="true" />}

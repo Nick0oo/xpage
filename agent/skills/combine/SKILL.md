@@ -1,27 +1,24 @@
 ---
 name: combine
-description: Combina aportes de métodos en un único plan con tensiones y precedencia explícitas.
+description: Integra varias técnicas en un plan y recorrido únicos, con precedencia, tensiones, decisiones y revisiones explícitas.
 ---
-# Combinación de técnicas · v1.0.0
+# Combinación de técnicas · v1.1.0
 
 ## Propósito
-Producir un único plan coherente, sin concatenar ocho prompts.
+Crear una sola dirección de diseño coherente a partir de las técnicas seleccionadas. No concatenes instrucciones ni generes una página por técnica.
 
-## Entrada
-Brief, DesignDNA y artefactos de cada técnica seleccionada.
+## Procedimiento
+1. Carga cada skill seleccionada y extrae su entrega antes de escribir el plan.
+2. Construye una identidad visual y un recorrido únicos; usa las técnicas como lentes para mejorar ese recorrido.
+3. Incluye una contribución con versión, estado, decisión y artefacto para cada técnica seleccionada.
+4. Compara decisiones incompatibles entre pares y registra la tensión concreta y su resolución.
+5. Aplica esta precedencia: hechos del brief y accesibilidad; restricciones expresas; DesignDNA; propósito narrativo; decisiones visuales y copy.
+6. Conserva solo secciones funcionales. Resuelve duplicados sin sacrificar necesidades del público.
+7. Si creator-critic está seleccionado, registra propuesta, hallazgos observables y revisión del plan integrado. Si una técnica no cambia una decisión, justifícalo.
+8. Verifica fuentes de claims, slots enlazados a secciones, IDs únicos, invariantes y que el prompt editable refleje el plan final.
 
-## Pasos observables
-1. Incluye una contribución para cada método seleccionado con su versión, estado, decisión y artefacto verificable.
-2. Registra tensiones reales y cómo se resolvieron; los métodos omitidos requieren razón.
-3. Aplica precedencia: hechos del brief y accesibilidad → identidad y restricciones globales → objetivos de sección → decisiones visuales y copy.
-4. Quita duplicados y produce un solo recorrido; una técnica puede no alterar una sección si lo explica.
-5. Mantén los claims enlazados a fuente y estado.
+## Entrega y verificación
+Completa `contributions`, `sections`, `claims`, `negativeConstraints` y `prompt`. Cada tensión requiere resolución explícita y cada método seleccionado debe estar cubierto. No muestres cadena de pensamiento ni presentes intuiciones CRO como medidas.
 
-## Artefacto y comprobaciones
-Completa `contributions`, `sections`, `claims` y `prompt`. Comprueba cobertura exacta de las técnicas seleccionadas, IDs estables únicos, conflictos resueltos y ninguna afirmación CRO presentada como medida real.
-
-## Ejemplo breve
-El video sugiere movimiento y accesibilidad pide alternativa estática: registrar la tensión y resolver con poster para `prefers-reduced-motion`.
-
-## Fuente
-Brief, aportes versionados y reglas de producto XPage.
+## Ejemplo
+Video-assets pide movimiento y negative-constraints pide movimiento mínimo: especifica un clip silencioso con poster y controles; con `prefers-reduced-motion`, usa solo el poster y conserva el mensaje.

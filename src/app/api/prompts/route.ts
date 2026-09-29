@@ -1,54 +1,25 @@
-import { APICallError, generateText, NoObjectGeneratedError, Output } from "ai";
 import { NextResponse } from "next/server";
-import {
-  getGeminiModel,
-  getOpenRouterTextFallbackModel,
-  getOpenRouterTextModel,
-  isTextProviderConfigured,
-  DEFAULT_GEMINI_MODEL,
-  DEFAULT_OPENROUTER_TEXT_MODEL,
-  DEFAULT_OPENROUTER_TEXT_FALLBACK_MODEL,
-} from "@/lib/ai/providers";
-import { getProviderFailure } from "@/lib/ai/errors";
 import { getTechnique } from "@/lib/techniques";
-import { generatedPromptSchema, promptRequestSchema } from "@/lib/schemas";
-import { Client } from "eve/client";
+import { promptRequestSchema } from "@/lib/schemas";
 import { designPlanSchema, validateTechniqueCoverage } from "@/lib/design-plan";
-import { isEveModel } from "@/lib/model-choice";
+import { runEveStructured } from "@/lib/eve-runtime";
 import {
-  recordProviderAttempts,
   recordTraceStep,
   setGenerationTraceStatus,
-  type ProviderAttemptTrace,
 } from "@/lib/generation-traces";
 
 export const runtime = "nodejs";
 
-const promptSystem = `Eres director creativo y estratega de UX, conversión y contenido. Transformas un brief y unas técnicas explícitas en un prompt de dirección web específico, visualmente distintivo y listo para que otro modelo construya una landing completa.
-
-Usa el brief como fuente de verdad: no conviertas hipótesis en hechos ni inventes precios, cifras, clientes, testimonios, premios, funciones o garantías. Si faltan datos, diseña sin ellos. Trabaja con la motivación y las dudas plausibles del público, pero no afirmes conocer datos de investigación que no se hayan proporcionado.
-
-No repitas una plantilla genérica de SaaS. Deriva una dirección de arte reconocible de la oferta y el público: un concepto visual breve, paleta con roles, tipografía disponible sin fuentes remotas, composición y un motivo visual que tenga sentido para la marca. Define un recorrido narrativo breve que explique la oferta, responda dudas reales y conduzca a una acción principal. Las secciones se eligen por necesidad, no para llenar una plantilla.
-
-Aplica cada técnica seleccionada de forma concreta y compatible con las demás. Si hay tensión, conserva la identidad visual y prioriza claridad, accesibilidad y conversión. Si se solicita creador-crítico, revisa internamente la primera dirección y corrige problemas de jerarquía, fricción, consistencia y afirmaciones no respaldadas; entrega solo la versión revisada. No muestres razonamiento privado.
-
-Devuelve únicamente un prompt autónomo en español para generar una landing terminada con HTML semántico, CSS y JavaScript vanilla separados. El prompt debe incluir decisiones de diseño accionables, comportamiento de los controles, criterios responsive y accesibilidad; no debe pedir al siguiente modelo que revele su cadena de pensamiento ni que genere llamadas, agentes o archivos externos.`;
-
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = promptRequestSchema.safeParse(body);
-
   if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Revisa el brief y la selección de técnicas.", code: "invalid_input" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Revisa el brief y la selección de técnicas.", code: "invalid_input" }, { status: 400 });
   }
 
   const input = parsed.data;
-  const techniqueIds =
-    input.mode === "technique" ? [input.techniqueId] : input.techniqueIds;
-  const selectedTechniques = techniqueIds.map(getTechnique);
+  const techniqueIds = input.mode === "technique" ? [input.techniqueId] : input.techniqueIds;
+  const techniques = techniqueIds.map(getTechnique);
   const briefText = [
     `Tema o industria: ${input.brief.topic}`,
     `Producto y beneficio: ${input.brief.offer}`,
@@ -56,233 +27,79 @@ export async function POST(request: Request) {
     `Tono o dirección visual: ${input.brief.tone}`,
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
   ].join("\n");
+  const skillNames = techniques.map(({ id }) => id);
+  if (input.mode === "combine") skillNames.push("combine");
+  const task = input.mode === "combine"
+    ? `Combina con criterio estos métodos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.`
+    : `Aplica el método ${techniques[0].id} (${techniques[0].name}) con profundidad.`;
+  const message = `${task}
 
-  // Eve is the primary structured planner. Failure is recoverable: existing
-  // prompt generation remains available while local ChatGPT authentication is pending.
-  const eveOrigin = process.env.EVE_ORIGIN?.trim() || "http://127.0.0.1:3000";
-  const eveStartedAt = Date.now();
-  const evePhase = input.mode === "combine" ? "combined-design-plan" : "technique-design-plan";
-  if (isEveModel(input.modelChoice)) try {
-    const client = new Client({ host: eveOrigin.replace(/\/$/, "") });
-    const task = input.mode === "combine"
-      ? `Combina estas técnicas: ${selectedTechniques.map(({ id, name }) => `${id} (${name})`).join(", ")}. Carga y aplica su skill versionada y la skill combine.`
-      : `Aplica la técnica ${selectedTechniques[0].id} (${selectedTechniques[0].name}). Carga y aplica su skill versionada.`;
-    const prompt = `${task}\n\nEntrega un DesignPlan completo para XPage con los campos del esquema. Cada contribución debe resumir decisiones observables, nunca razonamiento privado.\n\nBrief (fuente de hechos):\n${briefText}\n\nIDs seleccionados: ${techniqueIds.join(", ")}. Marca motivaciones y objeciones como hipótesis. Claims respaldados deben señalar el dato exacto del brief. El campo prompt debe ser un prompt editable para construir la landing. Incluye atributos data-xpage-section y data-xpage-slot en ese prompt.`;
-    const { response } = await client.sessions.create({
-      message: `XPage model selection: ${input.modelChoice}\n\n${prompt}`,
-      outputSchema: designPlanSchema,
-    });
-    const result = await response.result();
-    const plan = designPlanSchema.safeParse(result.data);
-    if (plan.success && validateTechniqueCoverage(plan.data, techniqueIds)) {
-      await recordEveTraceStep(input.traceId, {
-        eventType: "decision",
-        phase: evePhase,
-        title: "Plan estructurado · Eve",
-        techniqueIds,
-        provider: "eve-local",
-        model: input.modelChoice,
-        userPrompt: prompt,
-        outputText: plan.data.prompt,
-        output: plan.data,
-        skillVersions: Object.fromEntries(plan.data.contributions.map(({ techniqueId, skillVersion }) => [techniqueId, skillVersion])),
-        decisionSummary: plan.data.contributions.map(({ techniqueId, decision, status }) => `${techniqueId} (${status}): ${decision}`).join("\n"),
-        references: [{ kind: "source", id: "brief", label: "Brief aportado", sourceType: "brief" }],
-        durationMs: Date.now() - eveStartedAt,
-      });
-      await updateTraceStatus(input.traceId, "prompt-ready");
-      return NextResponse.json({
-        prompt: plan.data.prompt,
-        techniqueIds,
-        traceId: input.traceId,
-        designPlan: plan.data,
-        generationMode: "eve-design-plan",
-        modelChoice: input.modelChoice,
-      });
-    }
-    await recordEveTraceStep(input.traceId, {
-      phase: evePhase,
-      title: "Plan estructurado · Eve",
-      techniqueIds,
-      provider: "eve-local",
-      model: "eve-configured-model",
-      userPrompt: briefText,
-      status: "failed",
-      errorMessage: "La salida no cumple el contrato DesignPlan o no cubre las técnicas seleccionadas.",
-      durationMs: Date.now() - eveStartedAt,
-    });
-    console.warn("Eve returned an incomplete XPage design plan; using the legacy prompt path.");
-  } catch (error) {
-    await recordEveTraceStep(input.traceId, {
-      phase: evePhase,
-      title: "Plan estructurado · Eve",
-      techniqueIds,
-      provider: "eve-local",
-      model: "eve-configured-model",
-      userPrompt: briefText,
-      status: "failed",
-      errorMessage: error instanceof Error ? error.message.slice(0, 500) : "unknown error",
-      durationMs: Date.now() - eveStartedAt,
-    });
-    console.warn("Eve structured planning is unavailable; using the legacy prompt path.", error instanceof Error ? error.message : "unknown error");
-  }
+Carga y sigue estas skills de Eve: ${skillNames.join(", ")}. Trata sus instrucciones como procedimientos que debes ejecutar, no como etiquetas.
 
-  if (isEveModel(input.modelChoice)) {
-    await updateTraceStatus(input.traceId, "failed");
-    return NextResponse.json({
-      error: `Eve no pudo responder con ${input.modelChoice}. Revisa la sesión local con pnpm eve:dev y /login, o elige otro modelo.`,
-      code: "eve_model_unavailable",
-    }, { status: 503 });
-  }
+Devuelve un DesignPlan completo según el esquema. Trabaja primero una propuesta completa, evalúala y revisa el resultado antes de responder. Si el método creator-critic está seleccionado, rellena su propuesta, hallazgos y revisión explícitos. Describe decisiones observables, nunca razonamiento privado.
 
-  if (!isTextProviderConfigured()) {
-    await updateTraceStatus(input.traceId, "failed");
-    return NextResponse.json(
-      {
-        error: "Eve no entregó un plan válido y no hay un proveedor alternativo configurado. Completa el acceso local a ChatGPT o configura Gemini/OpenRouter.",
-        code: "structured_planner_unavailable",
-      },
-      { status: 503 },
-    );
-  }
-
-  const techniqueText = selectedTechniques
-    .map((technique) => `### ${technique.name}\n${technique.instruction}`)
-    .join("\n\n");
-
-  const task =
-    input.mode === "technique"
-      ? `Redacta un solo prompt aplicando la técnica «${selectedTechniques[0].name}».`
-      : "Redacta un único prompt que combine todas las técnicas seleccionadas como un sistema de diseño coherente, sin duplicaciones ni instrucciones que compitan.";
-
-  const userPrompt = `${task}
-
-BRIEF — fuente de verdad
+Brief (fuente de hechos):
 ${briefText}
 
-TÉCNICAS — instrucciones que debes aplicar
-${techniqueText}
+IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribución debe identificar la técnica, versión de skill, decisión concreta, artefacto visible y estado. Registra tensiones reales y su resolución. La cobertura de contribuciones debe coincidir exactamente con los métodos seleccionados.
 
-CONSTRUYE EL PROMPT FINAL CON ESTAS DECISIONES
-1. Estrategia: concreta qué intenta resolver o conseguir el público, qué duda podría frenarlo y qué mensaje le ayuda a avanzar. Preséntalo como dirección, no como dato investigado.
-2. Dirección de arte: inventa un concepto visual específico y coherente con esta oferta; define una paleta breve con roles, carácter tipográfico, composición y un motivo visual memorable. Evita recetas genéricas de SaaS y no impongas estilos que contradigan el brief.
-3. Recorrido: plantea solo las secciones necesarias para explicar la oferta y llegar al CTA. Elige una composición de hero deliberada; no asumas hero centrado, dos columnas, Bento ni tres tarjetas iguales. Da a cada sección un propósito y una transición clara.
-4. Copy y confianza: escribe en español natural, con beneficios comprensibles, micro-copy útil y argumentos que el brief pueda respaldar. Si no hay pruebas, precios o métricas, no los simules.
-5. Activos: si se seleccionaron técnicas de imagen o vídeo, especifica sujeto, encuadre, luz, proporción o movimiento y cómo el activo apoya el mensaje. La vista previa debe poder representarlo sin recursos remotos.
-6. Entrega: pide una landing funcional, adaptable desde móvil, accesible por teclado y con HTML semántico, CSS separado con variables y JavaScript vanilla solo para interacciones reales.
-7. Revisión: antes de responder, corrige inconsistencias de marca, jerarquía, fricción, exceso de elementos, accesibilidad y cualquier afirmación inventada. No incluyas la cadena de pensamiento.
-
-Entrega un único prompt autónomo, concreto y fácil de editar. Devuelve solo sus instrucciones para construir la landing; no escribas la landing ni añadas comentarios sobre tu proceso.`;
-  const attempts: ProviderAttemptTrace[] = [];
-  const traceTitle = input.mode === "combine"
-    ? `Combinar ${selectedTechniques.length} técnicas`
-    : `Prompt · ${selectedTechniques[0].name}`;
-
-  function modelName(provider: "gemini" | "openrouter" | "openrouter-fallback") {
-    if (provider === "gemini") return process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
-    if (provider === "openrouter") return process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_TEXT_MODEL;
-    return process.env.OPENROUTER_FALLBACK_MODEL?.trim() || DEFAULT_OPENROUTER_TEXT_FALLBACK_MODEL;
-  }
-
-  async function run(provider: "gemini" | "openrouter" | "openrouter-fallback") {
-    const startedAt = Date.now();
-    const model = modelName(provider);
-    try {
-      const result = await generateText({
-        model:
-          provider === "gemini"
-            ? getGeminiModel()
-            : provider === "openrouter"
-              ? getOpenRouterTextModel()
-              : getOpenRouterTextFallbackModel(),
-        instructions: promptSystem,
-        output: Output.object({ schema: generatedPromptSchema }),
-        maxRetries: 0,
-        maxOutputTokens: provider === "gemini" ? 6_000 : 3_500,
-        providerOptions:
-          provider === "gemini"
-            ? { google: { thinkingConfig: { thinkingLevel: "low" } } }
-            : undefined,
-        prompt: userPrompt,
-      });
-      attempts.push({
-        provider,
-        model,
-        status: "completed",
-        durationMs: Date.now() - startedAt,
-        outputText: result.output?.prompt,
-      });
-      return result;
-    } catch (error) {
-      const errorName = error instanceof Error ? error.name : "UnknownError";
-      const status = APICallError.isInstance(error) ? error.statusCode : undefined;
-      const finishReason = NoObjectGeneratedError.isInstance(error) ? error.finishReason : undefined;
-      attempts.push({
-        provider,
-        model,
-        status: "failed",
-        durationMs: Date.now() - startedAt,
-        errorMessage: [errorName, status ? `HTTP ${status}` : "", finishReason ? `finishReason ${finishReason}` : ""]
-          .filter(Boolean)
-          .join(" · "),
-      });
-      throw error;
-    }
-  }
+No inventes precios, cifras, clientes, testimonios, premios, funciones o garantías. Distingue hechos respaldados del brief, hipótesis y afirmaciones descartadas. El campo prompt es un prompt editable y completo en español para construir la landing. Incluye decisiones de estrategia, voz, recorrido, dirección visual, detalle de secciones, comportamiento accesible y atributos data-xpage-section/data-xpage-slot que conecten HTML y plan.`;
+  const startedAt = Date.now();
+  const phase = input.mode === "combine" ? "combined-design-plan" : "technique-design-plan";
 
   try {
-    const { output } = input.modelChoice === "gemini"
-      ? await run("gemini")
-      : await run("openrouter");
-
-    if (!output) {
-      await recordProviderAttempts({
-        traceId: input.traceId,
-        phase: input.mode === "combine" ? "combined-prompt" : "technique-prompt",
-        title: traceTitle,
-        techniqueIds,
-        systemPrompt: promptSystem,
-        userPrompt,
-        attempts,
-      });
-      await updateTraceStatus(input.traceId, "failed");
-      return NextResponse.json(
-        { error: "El proveedor no devolvió un prompt válido.", code: "invalid_output" },
-        { status: 502 },
-      );
+    const { data } = await runEveStructured({
+      modelChoice: input.modelChoice,
+      message,
+      outputSchema: designPlanSchema,
+    });
+    const plan = designPlanSchema.safeParse(data);
+    if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
+      throw new Error("Eve devolvió un DesignPlan incompleto o no cubre los métodos seleccionados.");
     }
 
-    await recordProviderAttempts({
-      traceId: input.traceId,
-      phase: input.mode === "combine" ? "combined-prompt" : "technique-prompt",
-      title: traceTitle,
+    await recordTraceStep(input.traceId, {
+      eventType: "decision",
+      phase,
+      title: input.mode === "combine" ? "Plan combinado · Eve" : "Plan del método · Eve",
       techniqueIds,
-      systemPrompt: promptSystem,
-      userPrompt,
-      attempts,
+      provider: "eve-local",
+      model: input.modelChoice,
+      userPrompt: message,
+      outputText: plan.data.prompt,
+      output: plan.data,
+      skillVersions: Object.fromEntries(plan.data.contributions.map(({ techniqueId, skillVersion }) => [techniqueId, skillVersion])),
+      decisionSummary: plan.data.contributions.map(({ techniqueId, decision, status, resolution }) => `${techniqueId} (${status}): ${decision}${resolution ? ` · Resolución: ${resolution}` : ""}`).join("\n"),
+      references: [{ kind: "source", id: "brief", label: "Brief aportado", sourceType: "brief" }],
+      durationMs: Date.now() - startedAt,
     });
     await updateTraceStatus(input.traceId, "prompt-ready");
     return NextResponse.json({
-      prompt: output.prompt,
+      prompt: plan.data.prompt,
       techniqueIds,
       traceId: input.traceId,
-      designPlan: null,
-      generationMode: "legacy-prompt",
+      designPlan: plan.data,
+      generationMode: "eve-design-plan",
       modelChoice: input.modelChoice,
     });
   } catch (error) {
-    await recordProviderAttempts({
-      traceId: input.traceId,
-      phase: input.mode === "combine" ? "combined-prompt" : "technique-prompt",
-      title: traceTitle,
+    const message = error instanceof Error ? error.message : "Eve no pudo completar el plan.";
+    await recordTraceStep(input.traceId, {
+      phase,
+      title: "Plan de diseño · Eve",
       techniqueIds,
-      systemPrompt: promptSystem,
-      userPrompt,
-      attempts,
-    });
+      provider: "eve-local",
+      model: input.modelChoice,
+      userPrompt: briefText,
+      status: "failed",
+      errorMessage: message.slice(0, 500),
+      durationMs: Date.now() - startedAt,
+    }).catch(() => undefined);
     await updateTraceStatus(input.traceId, "failed");
-    const failure = getProviderFailure(error, "XPage prompt generation failed");
-    return NextResponse.json(failure.body, { status: failure.status });
+    return NextResponse.json({
+      error: `Eve no pudo generar el plan con ${input.modelChoice}. Revisa su estado local y credenciales, o selecciona un proveedor configurado.`,
+      code: "eve_model_unavailable",
+    }, { status: 503 });
   }
 }
 
@@ -291,17 +108,6 @@ async function updateTraceStatus(traceId: string | undefined, status: string) {
   try {
     await setGenerationTraceStatus(traceId, status);
   } catch {
-    console.error("XPage prompt trace status update failed", { traceId, status });
-  }
-}
-
-async function recordEveTraceStep(
-  traceId: string | undefined,
-  step: Parameters<typeof recordTraceStep>[1],
-) {
-  try {
-    await recordTraceStep(traceId, step);
-  } catch {
-    console.error("XPage Eve trace persistence failed", { traceId, phase: step.phase });
+    console.error("XPage generation trace status update failed", { traceId, status });
   }
 }

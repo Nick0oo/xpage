@@ -2,24 +2,20 @@
 name: seed-strings
 description: Construye DesignDNA como fuente única de verdad visual y de marca.
 ---
-# Cadenas semilla · v1.0.0
+# Cadenas semilla · v1.1.0
 
-## Propósito y cuándo usar
-Establecer invariantes de marca antes de decidir secciones, copy o medios. Úsala cuando esta técnica esté seleccionada.
+## Propósito
+Establece invariantes de marca antes de decidir secciones, copy o medios.
 
-## Entrada
-Brief completo, marca si existe, oferta, audiencia, tono y restricciones expresas. El brief es la fuente de hechos.
+## Procedimiento
+1. Separa hechos declarados, restricciones y elementos desconocidos; no completes vacíos como hechos.
+2. Define un motivo visual concreto derivado de la oferta o el brief.
+3. Propón paleta por rol y valor, tipografía disponible sin cargar fuentes remotas y composición.
+4. Escribe de tres a cinco invariantes observables que se repitan en las secciones.
+5. Comprueba contraste, legibilidad y que el copy y los medios respeten las invariantes.
 
-## Pasos observables
-1. Extrae únicamente hechos declarados; marca lo inferido como hipótesis.
-2. Define motivo visual, paleta con rol y valor, tipografía disponible sin fuentes remotas y composición.
-3. Escribe invariantes verificables que deban repetirse en todas las secciones.
+## Entrega y verificación
+Completa `designDNA` (`brandMotif`, `palette`, `typography`, `composition`, `invariants`) y describe la decisión en `contributions`. Marca elecciones estéticas como propuesta, no como investigación de marca.
 
-## Artefacto y comprobaciones
-Completa `designDNA` (brandMotif, palette, typography, composition, invariants) en el plan y resume la decisión en `contributions`. Comprueba que el copy y los medios respetan esos invariantes y que la paleta tiene contraste legible. No inventes una identidad como hecho.
-
-## Ejemplo breve
-Para una panadería de masa madre: motivo «cuaderno de fermentación»; tinta carbón y crema de harina; composición editorial con notas laterales; invariantes: textura sutil, fechas solo si constan en el brief.
-
-## Fuente
-Brief del usuario. Las elecciones estéticas son propuesta de diseño, no investigación de marca.
+## Ejemplo
+Panadería de masa madre: motivo de cuaderno de fermentación, tinta carbón y crema, composición editorial con notas laterales; invariantes: textura sutil y fechas solo si constan en el brief.

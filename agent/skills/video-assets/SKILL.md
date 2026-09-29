@@ -1,25 +1,21 @@
 ---
 name: video-assets
-description: Define criterios para buscar clips gratuitos con póster y movimiento reducido.
+description: Define requisitos para un clip opcional con poster y alternativa accesible, sin generar ni afirmar disponibilidad de video.
 ---
-# Activos de vídeo · v1.0.0
+# Activos de vídeo · v1.1.0
 
-## Propósito y cuándo usar
-Especificar un clip que apoye el mensaje y pueda buscarse en un banco gratuito. No generar archivos de vídeo.
+## Propósito
+Propón un clip solo cuando el movimiento muestre una acción o transformación que una imagen fija no explique mejor. XPage no genera video.
 
-## Entrada
-Sección destino, intención del clip, duración útil, contexto de reproducción y preferencias de movimiento.
+## Procedimiento
+1. Determina qué acción debe entenderse y qué secuencia la explica.
+2. Describe sujeto, contexto, duración útil, ritmo, encuadre y movimiento de cámara.
+3. Define poster estático coherente, controles accesibles y comportamiento sin sonido.
+4. Ofrece una alternativa con movimiento reducido; evita autoplay con audio o loops distractores.
+5. No nombres bancos, licencias, disponibilidad, URL ni permisos sin verificación.
 
-## Pasos observables
-1. Describe sujeto, secuencia, ritmo y movimiento como criterios de búsqueda.
-2. Define duración, póster y alternativa estática.
-3. Conserva controles accesibles y especifica comportamiento con `prefers-reduced-motion`.
+## Entrega y verificación
+Crea un slot `type: video`, vincúlalo a una sección y registra duración/movimiento, poster y alternativa estática en `lightingOrMotion`, `poster` y `reducedMotion`. No declares que el archivo existe.
 
-## Artefacto y comprobaciones
-Usa `mediaSlots` con `type: video`, duración/movimiento en `lightingOrMotion`, `poster` y `reducedMotion`; vincula el slot a una sección. No declares clip disponible ni licencia comprobada: eso requiere un conector y metadatos reales.
-
-## Ejemplo breve
-Clip silencioso de 6–10 s mostrando manos preparando el producto, plano fijo; poster con fotograma equivalente; con movimiento reducido mostrar solo el poster.
-
-## Fuente
-Requisitos de producto de XPage y brief.
+## Ejemplo
+Un plano fijo de manos preparando el producto, clip silencioso de 6–10 segundos y poster del gesto principal; con movimiento reducido se muestra solo el poster.
