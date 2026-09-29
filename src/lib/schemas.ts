@@ -73,6 +73,17 @@ export const landingCodeSchema = z.object({
 
 export const landingRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(12_000),
+  explicitContentRequirements: z.array(z.object({
+    id: z.string().regex(/^[a-z0-9-]+$/),
+    statement: z.string().min(1).max(500),
+    sectionId: z.string().regex(/^[a-z0-9-]+$/),
+    targetCount: z.number().int().positive().max(30).optional(),
+    requiredItems: z.array(z.string().trim().min(1).max(500)).max(30),
+  }).superRefine((requirement, ctx) => {
+    if (requirement.targetCount !== undefined && requirement.requiredItems.length !== requirement.targetCount) {
+      ctx.addIssue({ code: "custom", message: "La lista debe coincidir con la cantidad de contenido solicitada.", path: ["requiredItems"] });
+    }
+  })).max(20).optional(),
   modelChoice: z.enum(MODEL_CHOICES).default("gemini"),
   traceId: z.string().uuid().optional(),
 });

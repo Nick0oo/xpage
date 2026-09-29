@@ -13,6 +13,8 @@ Dar intención narrativa a cada sección sin presentar intuiciones como investig
 3. Asigna a cada sección un propósito y una duda que resuelve.
 4. Ordena las secciones para pasar de interés a comprensión, evidencia disponible y acción.
 5. Elige un CTA coherente con la oferta y evita urgencia o promesas que el brief no respalde.
+6. Convierte cada entregable solicitado en contenido visible y concreto. Si se pide una cantidad de ejercicios o ejemplos, redacta las piezas; no reemplaces la entrega por una promesa de que la página los contiene.
+7. Usa un recorrido que muestre el valor real de la oferta: incorpora la práctica, explicación o muestra pedida antes de cerrar con la acción.
 
 ## Entrega y verificación
 Registra hipótesis en `audienceHypotheses`, propósito en cada sección y aplicación en `contributions`. Ninguna hipótesis puede aparecer como dato medido o claim respaldado.
