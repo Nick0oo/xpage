@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Download, ExternalLink } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -128,6 +129,29 @@ export default function SavedLandingPage() {
                   </p>
                 )}
               </section>
+              {landing.mediaAssets?.length ? (
+                <section aria-labelledby="saved-media-heading" className="space-y-3 rounded-xl border border-border bg-card p-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.15em] text-muted-foreground">Medios colocados</p>
+                    <h2 id="saved-media-heading" className="mt-1 font-display text-xl">Fotos, clips y créditos</h2>
+                  </div>
+                  <ul className="space-y-3">{landing.mediaAssets.map((asset) => (
+                    <li key={asset.id} className="flex gap-3 rounded-lg border border-border p-2.5">
+                      {asset.type === "video" ? (
+                        <video src={`/api/media/assets/${asset.id}`} poster={`/api/media/assets/${asset.id}?poster=1`} controls playsInline preload="metadata" className="aspect-video w-32 shrink-0 rounded-md bg-muted object-cover" />
+                      ) : (
+                        <Image src={`/api/media/assets/${asset.id}`} alt={asset.altText} width={320} height={180} unoptimized loading="lazy" className="aspect-video w-32 shrink-0 rounded-md bg-muted object-cover" />
+                      )}
+                      <div className="min-w-0 text-xs leading-5">
+                        <p className="font-medium">{asset.type === "image" ? "Foto" : "Video"} · {asset.provider}</p>
+                        <p className="truncate text-muted-foreground">{asset.sectionId} · {asset.slotId}</p>
+                        <a href={asset.sourceUrl} target="_blank" rel="noreferrer" className="text-primary underline">{asset.author} · fuente/licencia</a>
+                      </div>
+                    </li>
+                  ))}</ul>
+                  <p className="text-xs leading-5 text-muted-foreground">Los archivos viven en `data/assets`; el paquete ZIP incluye HTML, medios y CREDITOS.txt.</p>
+                </section>
+              ) : null}
               <details className="rounded-xl border border-border bg-card p-4">
                 <summary className="cursor-pointer text-sm font-medium">Ver el prompt final</summary>
                 <pre className="mt-3 max-h-[320px] overflow-auto whitespace-pre-wrap font-mono text-xs leading-6 text-muted-foreground">{landing.prompt}</pre>

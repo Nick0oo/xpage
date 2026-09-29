@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { pexelsRequest, pexelsMediaSchema } from "@/lib/media/pexels";
+import { recordTraceStep } from "@/lib/generation-traces";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,7 @@ export async function GET(request: Request) {
   const query = params.get("q")?.trim().slice(0, 120) ?? "";
   const type = params.get("type") === "video" ? "video" : "image";
   const page = Math.min(100, Math.max(1, Number(params.get("page") ?? 1) || 1));
+  const traceId = params.get("traceId");
   if (query.length < 2) return NextResponse.json({ error: "Escribe al menos dos caracteres para buscar.", code: "invalid_query" }, { status: 400 });
   try {
     const endpoint = new URL(type === "image" ? "https://api.pexels.com/v1/search" : "https://api.pexels.com/v1/videos/search");
@@ -41,9 +43,20 @@ export async function GET(request: Request) {
         });
     const parsed = pexelsMediaSchema.array().safeParse(items ?? []);
     if (!parsed.success) throw new Error("invalid_provider_data");
+    if (traceId && /^[0-9a-f-]{36}$/.test(traceId)) {
+      await recordTraceStep(traceId, {
+        eventType: "source", phase: "media-search", title: `Búsqueda Pexels · ${type === "image" ? "fotos" : "videos"}`,
+        provider: "pexels", model: "Pexels API", userPrompt: query,
+        output: { query, type, page, results: parsed.data.map((item) => ({ providerAssetId: String(item.id), author: item.author, sourceUrl: item.sourceUrl, creditUrl: item.creditUrl })) },
+        references: parsed.data.map((item) => ({ kind: "source" as const, id: String(item.id), label: `Pexels · ${item.author}`, url: item.sourceUrl, sourceType: "proveedor" as const })),
+      }).catch(() => undefined);
+    }
     return NextResponse.json({ items: parsed.data, provider: "Pexels", page, hasMore: (items?.length ?? 0) === 12 });
   } catch (error) {
     const code = error instanceof Error ? error.message : "search_failed";
+    if (traceId && /^[0-9a-f-]{36}$/.test(traceId)) {
+      await recordTraceStep(traceId, { eventType: "source", phase: "media-search", title: "Búsqueda en Pexels no disponible", provider: "pexels", model: "Pexels API", userPrompt: query, status: "failed", errorMessage: code }).catch(() => undefined);
+    }
     if (code === "missing_api_key") return NextResponse.json({ error: "Configura PEXELS_API_KEY en .env.local para buscar fotos y vídeos.", code }, { status: 503 });
     if (code === "rate_limited") return NextResponse.json({ error: "Pexels alcanzó su límite temporal. Espera antes de volver a buscar.", code }, { status: 429 });
     return NextResponse.json({ error: "Pexels no está disponible ahora. Inténtalo de nuevo en un momento.", code: "provider_unavailable" }, { status: 502 });

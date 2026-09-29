@@ -6,12 +6,16 @@ import { recordTraceStep } from "@/lib/generation-traces";
 import { downloadPexelsFile, pexelsRequest } from "@/lib/media/pexels";
 import { removeStoredMedia, storeMediaBuffer } from "@/lib/media/storage";
 import { isLocalRequest } from "@/lib/media/request-guard";
+import { insertMediaIntoLanding } from "@/lib/media/insertion";
+import { publicMediaAsset } from "@/lib/media/types";
+import { validateMediaDestination } from "@/lib/media/plan-validation";
 
 export const runtime = "nodejs";
 
 const selectionSchema = z.object({
   id: z.number().int().positive(),
   type: z.enum(["image", "video"]),
+  query: z.string().trim().min(2).max(120),
   savedLandingId: z.string().uuid(),
   traceId: z.string().uuid().optional(),
   sectionId: z.string().regex(/^[a-z0-9-]{1,80}$/),
@@ -22,34 +26,6 @@ const selectionSchema = z.object({
 type PexelsPhotoDetail = { id: number; url: string; photographer: string; photographer_url: string; width: number; height: number; alt: string; src: { large2x?: string; large?: string; original: string } };
 type PexelsVideoDetail = { id: number; url: string; user: { name: string; url: string }; width: number; height: number; duration: number; image: string; video_files: { width: number | null; height: number | null; quality: string; file_type: string; link: string }[] };
 
-function escapeAttribute(value: string) {
-  return value.replaceAll("&", "&amp;").replaceAll('"', "&quot;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
-
-function injectMedia(html: string, input: { sectionId: string; slotId: string; id: string; type: "image" | "video"; altText: string; author: string; creditUrl: string }) {
-  const sectionPattern = new RegExp(`<section\\b[^>]*data-xpage-section=["']${input.sectionId}["'][^>]*>`, "i");
-  const section = sectionPattern.exec(html);
-  if (!section) throw new Error("La sección seleccionada no aparece en el HTML. Revisa el plan y vuelve a construir la landing.");
-  const slotPattern = new RegExp(`<([a-z][a-z0-9-]*)\\b[^>]*data-xpage-slot=["']${input.slotId}["'][^>]*>`, "ig");
-  slotPattern.lastIndex = section.index + section[0].length;
-  const slot = slotPattern.exec(html);
-  const closingSection = html.indexOf("</section>", section.index + section[0].length);
-  if (!slot || (closingSection >= 0 && slot.index > closingSection)) throw new Error("El espacio de medios no pertenece a la sección elegida.");
-  const blockStart = `<!--xpage-media-slot:${input.slotId}:start-->`;
-  const blockEnd = `<!--xpage-media-slot:${input.slotId}:end-->`;
-  const withoutExisting = new RegExp(`${blockStart}[\\s\\S]*?${blockEnd}`, "g").test(html)
-    ? html.replace(new RegExp(`${blockStart}[\\s\\S]*?${blockEnd}`, "g"), "")
-    : html;
-  const figure = input.type === "image"
-    ? `<figure style="margin:0"><img src="/api/media/assets/${input.id}" alt="${escapeAttribute(input.altText)}" loading="lazy" style="display:block;max-width:100%;height:auto;object-fit:cover"><figcaption>Photo by <a href="${escapeAttribute(input.creditUrl)}" target="_blank" rel="noopener noreferrer">${escapeAttribute(input.author)}</a> on <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">Pexels</a></figcaption></figure>`
-    : `<figure style="margin:0"><video controls playsinline preload="metadata" poster="/api/media/assets/${input.id}?poster=1" style="display:block;max-width:100%;height:auto"><source src="/api/media/assets/${input.id}" type="video/mp4">Tu navegador no puede reproducir este video.</video><figcaption>Video by <a href="${escapeAttribute(input.creditUrl)}" target="_blank" rel="noopener noreferrer">${escapeAttribute(input.author)}</a> on <a href="https://www.pexels.com" target="_blank" rel="noopener noreferrer">Pexels</a></figcaption></figure>`;
-  const marker = `${blockStart}${figure}${blockEnd}`;
-  const refreshedPattern = new RegExp(`<([a-z][a-z0-9-]*)\\b[^>]*data-xpage-slot=["']${input.slotId}["'][^>]*>`, "i");
-  const refreshedSlot = refreshedPattern.exec(withoutExisting);
-  if (!refreshedSlot) throw new Error("No se pudo actualizar el espacio de medios.");
-  return `${withoutExisting.slice(0, refreshedSlot.index + refreshedSlot[0].length)}${marker}${withoutExisting.slice(refreshedSlot.index + refreshedSlot[0].length)}`;
-}
-
 export async function POST(request: Request) {
   if (!isLocalRequest(request)) return NextResponse.json({ error: "Esta acción solo está disponible desde XPage en este equipo." }, { status: 403 });
   const body = await request.json().catch(() => null);
@@ -58,6 +34,10 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const landing = await prisma.savedLanding.findUnique({ where: { id: input.savedLandingId } });
   if (!landing) return NextResponse.json({ error: "Guarda primero la landing en Biblioteca para asociar sus medios." }, { status: 409 });
+  if (input.traceId && input.traceId !== landing.traceId) return NextResponse.json({ error: "La traza y la landing no coinciden. Vuelve al Studio para seguir." }, { status: 400 });
+  if (!(await validateMediaDestination({ savedLandingId: landing.id, sectionId: input.sectionId, slotId: input.slotId, type: input.type }))) {
+    return NextResponse.json({ error: "La sección y el espacio no coinciden con el DesignPlan guardado. Vuelve a construir la landing." }, { status: 409 });
+  }
   if (input.traceId && !(await prisma.generationTrace.findUnique({ where: { id: input.traceId }, select: { id: true } }))) {
     return NextResponse.json({ error: "La traza indicada no existe." }, { status: 400 });
   }
@@ -116,20 +96,26 @@ export async function POST(request: Request) {
       sourceUrl, creditUrl, license: "Pexels License", mimeType: stored.mimeType, width, height, durationSeconds,
       localPath: stored.path, posterPath, sectionId: input.sectionId, slotId: input.slotId, altText, savedLandingId: landing.id,
     } as const;
-    const nextHtml = injectMedia(landing.html, { sectionId: input.sectionId, slotId: input.slotId, id, type: input.type, altText, author, creditUrl });
+    const nextHtml = insertMediaIntoLanding(landing.html, { sectionId: input.sectionId, slotId: input.slotId, id, type: input.type, altText, author, creditUrl, providerLabel: "Pexels", providerUrl: "https://www.pexels.com" });
+    const replaced = await prisma.mediaAsset.findFirst({ where: { savedLandingId: landing.id, sectionId: input.sectionId, slotId: input.slotId }, select: { localPath: true, posterPath: true } });
     await prisma.$transaction(async (tx) => {
+      await tx.mediaAsset.deleteMany({ where: { savedLandingId: landing.id, sectionId: input.sectionId, slotId: input.slotId } });
       await tx.mediaAsset.create({ data: asset });
       await tx.savedLanding.update({ where: { id: landing.id }, data: { html: nextHtml } });
     });
+    if (replaced) {
+      await removeStoredMedia(replaced.localPath);
+      await removeStoredMedia(replaced.posterPath);
+    }
     if (input.traceId) {
       await recordTraceStep(input.traceId, {
         eventType: "asset", phase: "media-selection", title: `${input.type === "image" ? "Foto" : "Video"} de Pexels añadido`,
-        provider: "pexels", model: "Pexels API", userPrompt: `Búsqueda seleccionada: ${String(input.id)}`,
-        output: { type: input.type, provider: "Pexels", providerAssetId: String(input.id), author, sourceUrl, creditUrl, license: "Pexels License", mimeType: stored.mimeType, byteLength: buffer.byteLength, sectionId: input.sectionId, slotId: input.slotId, altText },
+        provider: "pexels", model: "Pexels API", userPrompt: input.query,
+        output: { assetId: id, type: input.type, provider: "Pexels", providerAssetId: String(input.id), query: input.query, author, sourceUrl, creditUrl, license: "Pexels License", mimeType: stored.mimeType, byteLength: buffer.byteLength, sectionId: input.sectionId, slotId: input.slotId, altText },
         references: [{ kind: "media-asset", id, label: `${input.type} · ${author}` }, { kind: "section", id: input.sectionId }, { kind: "source", id: String(input.id), url: sourceUrl, label: `Pexels · ${author}`, sourceType: "proveedor" }],
       }).catch(() => undefined);
     }
-    return NextResponse.json({ asset: { ...asset, localPath: undefined, posterPath: undefined, createdAt: new Date().toISOString() }, url: `/api/media/assets/${id}`, html: nextHtml });
+    return NextResponse.json({ asset: publicMediaAsset({ ...asset, createdAt: new Date().toISOString() }), url: `/api/media/assets/${id}`, html: nextHtml });
   } catch (error) {
     await removeStoredMedia(stored?.path);
     await removeStoredMedia(posterPath);

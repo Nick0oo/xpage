@@ -3,7 +3,7 @@ import { techniqueIdSchema } from "@/lib/schemas";
 import { TECHNIQUE_IDS } from "@/lib/techniques";
 
 export const mediaSlotSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().regex(/^[a-z0-9-]+$/),
   type: z.enum(["image", "video"]),
   purpose: z.string().min(1),
   subject: z.string().min(1),

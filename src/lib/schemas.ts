@@ -78,6 +78,12 @@ export const imageRequestSchema = z.object({
   brief: briefSchema,
   modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
   traceId: z.string().uuid().optional(),
+  destination: z.object({
+    savedLandingId: z.string().uuid(),
+    sectionId: z.string().regex(/^[a-z0-9-]{1,80}$/),
+    slotId: z.string().regex(/^[a-z0-9-]{1,80}$/),
+    altText: z.string().trim().max(300).optional(),
+  }).optional(),
 });
 
 export const traceCreateSchema = z.object({
