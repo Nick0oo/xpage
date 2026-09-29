@@ -18,6 +18,14 @@ export const briefSchema = z.object({
     .max(280),
   tone: z.string().trim().min(2, "Indica el tono o dirección visual.").max(180),
   cta: z.string().trim().max(180).optional().default(""),
+  brand: z.string().trim().max(180).optional().default(""),
+  palette: z.string().trim().max(240).optional().default(""),
+  references: z.string().trim().max(1200).optional().default(""),
+  avoid: z.string().trim().max(360).optional().default(""),
+  objective: z.string().trim().max(240).optional().default(""),
+  variety: z.enum(["sutil", "equilibrada", "atrevida"]).default("equilibrada"),
+  movement: z.enum(["reducido", "moderado", "dinamico"]).default("moderado"),
+  density: z.enum(["aireada", "equilibrada", "densa"]).default("equilibrada"),
 });
 
 export const promptRequestSchema = z.discriminatedUnion("mode", [
@@ -35,11 +43,18 @@ export const promptRequestSchema = z.discriminatedUnion("mode", [
     modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
     traceId: z.string().uuid().optional(),
   }),
+  z.object({
+    mode: z.literal("directions"),
+    brief: briefSchema,
+    techniqueIds: z.array(techniqueIdSchema).min(1).max(TECHNIQUE_IDS.length),
+    modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
+    traceId: z.string().uuid().optional(),
+  }),
 ]).refine(
   (input) =>
-    input.mode !== "combine" ||
+    (input.mode !== "combine" && input.mode !== "directions") ||
     new Set(input.techniqueIds).size === input.techniqueIds.length,
-  "No repitas técnicas en la combinación.",
+  "No repitas técnicas en la selección.",
 );
 
 export const generatedPromptSchema = z.object({
