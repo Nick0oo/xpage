@@ -83,6 +83,7 @@ export default function Home() {
   const [view, setView] = useState<"create" | "preview">("create");
   const [activeLanding, setActiveLanding] = useState<ActiveLanding | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
+  const [downloadError, setDownloadError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
   const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
   const [creativeDirections, setCreativeDirections] = useState<CreativeDirection[]>([]);
@@ -403,8 +404,31 @@ export default function Home() {
     }
   }
 
-  function downloadLanding() {
+  async function downloadLanding() {
     if (!activeLanding) return;
+    setDownloadError("");
+    if (activeLanding.mediaAssets.length > 0) {
+      if (!activeLanding.savedId) {
+        setDownloadError("Guarda primero esta landing para empaquetar sus medios locales.");
+        return;
+      }
+      try {
+        const response = await fetch(`/api/media/export?id=${encodeURIComponent(activeLanding.savedId)}`);
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+          throw new Error(typeof payload?.error === "string" ? payload.error : "No se pudo crear el paquete de medios.");
+        }
+        const url = URL.createObjectURL(await response.blob());
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = makeDownloadName(activeLanding.code.title).replace(/\.html$/, "-medios.zip");
+        anchor.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) {
+        setDownloadError(error instanceof Error ? error.message : "No se pudo crear el paquete de medios.");
+      }
+      return;
+    }
     const blob = new Blob([buildPreviewDocument(activeLanding.code)], {
       type: "text/html;charset=utf-8",
     });
@@ -487,9 +511,9 @@ export default function Home() {
               </div>
             </details>
 
-            <Button type="button" variant="outline" size="sm" onClick={downloadLanding} aria-label="Descargar HTML" title="Descargar HTML">
+            <Button type="button" variant="outline" size="sm" onClick={downloadLanding} aria-label={activeLanding.mediaAssets.length ? "Descargar paquete ZIP" : "Descargar HTML"} title={activeLanding.mediaAssets.length ? "Descargar paquete ZIP" : "Descargar HTML"}>
               <Download aria-hidden="true" />
-              <span className="hidden md:inline">HTML</span>
+              <span className="hidden md:inline">{activeLanding.mediaAssets.length ? "Paquete ZIP" : "HTML"}</span>
             </Button>
 
             <Link
@@ -530,6 +554,7 @@ export default function Home() {
               </Button>
             )}
           </div>
+          {downloadError ? <p role="alert" className="px-3 pb-2 text-xs text-destructive">{downloadError}</p> : null}
         </header>
 
         {saveMessage ? (

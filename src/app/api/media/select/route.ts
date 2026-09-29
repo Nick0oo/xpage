@@ -97,16 +97,11 @@ export async function POST(request: Request) {
       localPath: stored.path, posterPath, sectionId: input.sectionId, slotId: input.slotId, altText, savedLandingId: landing.id,
     } as const;
     const nextHtml = insertMediaIntoLanding(landing.html, { sectionId: input.sectionId, slotId: input.slotId, id, type: input.type, altText, author, creditUrl, providerLabel: "Pexels", providerUrl: "https://www.pexels.com" });
-    const replaced = await prisma.mediaAsset.findFirst({ where: { savedLandingId: landing.id, sectionId: input.sectionId, slotId: input.slotId }, select: { localPath: true, posterPath: true } });
     await prisma.$transaction(async (tx) => {
-      await tx.mediaAsset.deleteMany({ where: { savedLandingId: landing.id, sectionId: input.sectionId, slotId: input.slotId } });
+      await tx.mediaAsset.updateMany({ where: { savedLandingId: landing.id, sectionId: input.sectionId, slotId: input.slotId, isCurrent: true }, data: { isCurrent: false } });
       await tx.mediaAsset.create({ data: asset });
       await tx.savedLanding.update({ where: { id: landing.id }, data: { html: nextHtml } });
     });
-    if (replaced) {
-      await removeStoredMedia(replaced.localPath);
-      await removeStoredMedia(replaced.posterPath);
-    }
     if (input.traceId) {
       await recordTraceStep(input.traceId, {
         eventType: "asset", phase: "media-selection", title: `${input.type === "image" ? "Foto" : "Video"} de Pexels añadido`,

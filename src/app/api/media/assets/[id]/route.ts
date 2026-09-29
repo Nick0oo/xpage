@@ -6,7 +6,7 @@ import { readStoredMedia } from "@/lib/media/storage";
 export const runtime = "nodejs";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  if (!isLocalRequest(request)) return NextResponse.json({ error: "El archivo solo está disponible desde XPage en este equipo." }, { status: 403 });
+  if (!isLocalRequest(request, true)) return NextResponse.json({ error: "El archivo solo está disponible desde XPage en este equipo." }, { status: 403 });
   const { id } = await context.params;
   if (!/^[0-9a-f-]{36}$/.test(id)) return NextResponse.json({ error: "El identificador del medio no es válido." }, { status: 400 });
   const asset = await prisma.mediaAsset.findUnique({ where: { id }, select: { type: true, mimeType: true, localPath: true, posterPath: true } });

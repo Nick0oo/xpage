@@ -41,6 +41,7 @@ model MediaAsset {
   sectionId       String
   slotId          String
   altText         String
+  isCurrent       Boolean      @default(true)
   createdAt       DateTime     @default(now())
   savedLandingId  String
   savedLanding    SavedLanding @relation(fields: [savedLandingId], references: [id], onDelete: Cascade)

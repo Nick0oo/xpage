@@ -19,6 +19,7 @@ export default function SavedLandingPage() {
     landing: SavedLanding | null;
     error: string | null;
   } | null>(null);
+  const [downloadError, setDownloadError] = useState("");
   const currentResult = loadResult?.id === params.id ? loadResult : null;
   const loaded = currentResult !== null;
   const landing = currentResult?.landing ?? null;
@@ -46,8 +47,27 @@ export default function SavedLandingPage() {
     };
   }, [params.id]);
 
-  function download() {
+  async function download() {
     if (!landing) return;
+    setDownloadError("");
+    if (landing.mediaAssets?.length) {
+      try {
+        const response = await fetch(`/api/media/export?id=${encodeURIComponent(landing.id)}`);
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null) as { error?: unknown } | null;
+          throw new Error(typeof payload?.error === "string" ? payload.error : "No se pudo crear el paquete de medios.");
+        }
+        const url = URL.createObjectURL(await response.blob());
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = makeDownloadName(landing.title).replace(/\.html$/, "-medios.zip");
+        anchor.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      } catch (error) {
+        setDownloadError(error instanceof Error ? error.message : "No se pudo crear el paquete de medios.");
+      }
+      return;
+    }
     const { title, html, css, js } = landing;
     const blob = new Blob(
       [buildPreviewDocument({ title, html, css, js })],
@@ -101,8 +121,9 @@ export default function SavedLandingPage() {
                 <ExternalLink size={15} aria-hidden="true" /> Abrir página completa
               </Button>
               <Button type="button" variant="outline" onClick={download}>
-                <Download size={15} aria-hidden="true" /> Descargar HTML
+                <Download size={15} aria-hidden="true" /> {landing.mediaAssets?.length ? "Descargar paquete ZIP" : "Descargar HTML"}
               </Button>
+              {downloadError ? <p role="alert" className="text-xs text-destructive sm:self-center">{downloadError}</p> : null}
             </div>
           </div>
 

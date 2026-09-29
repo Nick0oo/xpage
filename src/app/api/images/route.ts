@@ -98,16 +98,11 @@ export async function POST(request: Request) {
       altText,
       savedLandingId: landing.id,
     } as const;
-    const replaced = await prisma.mediaAsset.findFirst({ where: { savedLandingId: landing.id, sectionId: destination.sectionId, slotId: destination.slotId }, select: { localPath: true, posterPath: true } });
     await prisma.$transaction(async (tx) => {
-      await tx.mediaAsset.deleteMany({ where: { savedLandingId: landing.id, sectionId: destination.sectionId, slotId: destination.slotId } });
+      await tx.mediaAsset.updateMany({ where: { savedLandingId: landing.id, sectionId: destination.sectionId, slotId: destination.slotId, isCurrent: true }, data: { isCurrent: false } });
       await tx.mediaAsset.create({ data: asset });
       await tx.savedLanding.update({ where: { id: landing.id }, data: { html } });
     });
-    if (replaced) {
-      await removeStoredMedia(replaced.localPath);
-      await removeStoredMedia(replaced.posterPath);
-    }
     attempts.push({
       provider: "eve-image-tool", model, status: "completed", durationMs: Date.now() - startedAt,
       output: { mediaType: result.data.mediaType, byteLength: image.byteLength, artifactId },

@@ -136,14 +136,14 @@ export async function listSavedLandings() {
 
   const records = await prisma.savedLanding.findMany({
     orderBy: { createdAt: "desc" },
-    include: { mediaAssets: { orderBy: { createdAt: "asc" } } },
+    include: { mediaAssets: { where: { isCurrent: true }, orderBy: { createdAt: "asc" } } },
   });
   return records.map(fromRecord);
 }
 
 export async function getSavedLanding(id: string) {
   await ensureSavedLandingTrace(id);
-  const record = await prisma.savedLanding.findUnique({ where: { id }, include: { mediaAssets: { orderBy: { createdAt: "asc" } } } });
+  const record = await prisma.savedLanding.findUnique({ where: { id }, include: { mediaAssets: { where: { isCurrent: true }, orderBy: { createdAt: "asc" } } } });
   return record ? fromRecord(record) : null;
 }
 
