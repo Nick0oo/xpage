@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     `Tono o dirección visual: ${input.brief.tone}`,
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
   ].join("\n");
-  const skillNames = techniques.map(({ id }) => id);
+  const skillNames: string[] = techniques.map(({ id }) => id);
   if (input.mode === "combine") skillNames.push("combine");
   const task = input.mode === "combine"
     ? `Combina con criterio estos métodos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.`
