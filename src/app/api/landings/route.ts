@@ -27,7 +27,7 @@ INTERACCIÓN Y REVISIÓN: evalúa claridad, jerarquía, contraste, navegación, 
 
 REQUISITOS DE CONTENIDO: cada elemento de explicitContentRequirements es obligatorio. Incluye todos los requiredItems completos, visibles y legibles dentro de su sección; no los reemplaces con un titular que solo mencione una cantidad. El texto debe seguir presente al desactivar JavaScript.
 
-IMPLEMENTACIÓN: usa HTML semántico, estilos móviles primero, foco visible, contraste suficiente y prefers-reduced-motion. JavaScript solo para interacciones reales, locales y accesibles. No uses React, frameworks, imports, CDNs, fuentes/imágenes remotas, iframes, formularios con envío, red, almacenamiento web ni acceso al documento padre. Para medios, usa composición CSS/SVG útil hasta que exista un recurso local; jamás dejes un bloque vacío o un placeholder genérico. Devuelve solamente los campos del esquema.`;
+IMPLEMENTACIÓN: usa HTML semántico, estilos móviles primero, foco visible, contraste suficiente y prefers-reduced-motion. At 360, 390, 768 and 1440 px prevent horizontal overflow: let headings wrap, use fluid font sizes, set min-width:0 on grid and flex children, and keep the header note and SVG within the viewport. JavaScript solo para interacciones reales, locales y accesibles. No uses React, frameworks, imports, CDNs, fuentes/imágenes remotas, iframes, formularios con envío, red, almacenamiento web ni acceso al documento padre. Para medios, usa composición CSS/SVG útil hasta que exista un recurso local; jamás dejes un bloque vacío o un placeholder genérico. Devuelve solamente los campos del esquema.`;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
