@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { parseFragment, type DefaultTreeAdapterTypes } from "parse5";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { landingCodeSchema, landingRequestSchema } from "@/lib/schemas";
 import {
@@ -18,7 +19,7 @@ VARIEDAD VISUAL: elige una metáfora gráfica concreta derivada del contenido y 
 
 RECORRIDO: la primera pantalla comunica oferta, destinatario y siguiente acción. Desarrolla un recorrido completo, no solo un hero y un resumen. Cuando el brief contenga material, suele funcionar una arquitectura de 5–7 secciones sustantivas con detalle de la oferta, ejemplos/entregables, explicación de uso y cierre; adapta el número y propósito a la oferta, sin secciones de relleno. El copy debe ser claro, natural y respaldable por el brief. No inventes clientes, testimonios, cifras, precios, premios, funciones ni garantías. Aplica todos los atributos data-xpage-section y data-xpage-slot del plan.
 
-CTA: cada llamada a la acción debe funcionar. Usa la URL proporcionada en el brief o, si no existe, un enlace de ancla a la sección pertinente que ya esté en esta página. No deshabilites el CTA ni presentes un botón que no haga nada.
+CTA: cada llamada a la acción debe funcionar. Usa la URL proporcionada en el brief o, si no existe, un enlace de ancla a la sección pertinente que ya esté en esta página. El CTA principal debe ser un enlace activo con class="cta"; no lo deshabilites ni presentes un botón que no haga nada.
 
 INTERACCIÓN Y REVISIÓN: evalúa claridad, jerarquía, contraste, navegación, fricción, accesibilidad, responsive, riqueza del contenido y consistencia con DesignDNA. Cuando la oferta se beneficie de ello, incluye una interacción local útil (por ejemplo, tabs accesibles, pasos de una práctica o un selector); evita formularios ficticios, botones decorativos y controles sin respuesta. Corrige hallazgos concretos antes de devolver el resultado. No reveles razonamiento privado.
 
@@ -104,15 +105,52 @@ export async function POST(request: Request) {
 }
 
 function missingLandingElements(html: string, requirements: Array<{ sectionId: string; requiredItems: string[] }>, sectionIds: string[]) {
-  const visible = normalizeContent(html.replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " "));
-  const missingSections = sectionIds.filter((id) => !new RegExp(`data-xpage-section\\s*=\\s*[\"']${id}[\"']`, "i").test(html)).map((id) => `Sección sin marker: ${id}`);
+  const fragment = parseFragment(html);
+  const elements = parsedElements(fragment);
+  const visible = normalizeContent(parsedText(fragment));
+  const markerIds = new Set(elements.map((element) => parsedAttribute(element, "data-xpage-section")).filter((id): id is string => id !== undefined));
+  const missingSections = sectionIds.filter((id) => !markerIds.has(id)).map((id) => `Seccion sin marker: ${id}`);
   const missingItems = requirements.flatMap(({ requiredItems }) => requiredItems.filter((item) => !visible.includes(normalizeContent(item))));
-  const disabledButtons = /<button\b[^>]*\bdisabled(?:\s|=|>)[^>]*>/i.test(html) ? ["CTA o control deshabilitado"] : [];
-  const brokenAnchors = [...html.matchAll(/\bhref\s*=\s*[\"']#([a-z0-9-]+)[\"']/gi)]
-    .map((match) => match[1])
-    .filter((id) => !new RegExp(`\\bid\\s*=\\s*[\"']${id}[\"']`, "i").test(html))
+  const disabledPrimaryCta = elements.some((element) => element.tagName === "button"
+    && parsedAttribute(element, "class")?.split(/\s+/).includes("cta")
+    && (parsedAttribute(element, "disabled") !== undefined || parsedAttribute(element, "aria-disabled") === "true"))
+    ? ["El CTA principal esta deshabilitado"] : [];
+  const targetIds = new Set(elements.map((element) => parsedAttribute(element, "id")).filter((id): id is string => id !== undefined));
+  const brokenAnchors = elements
+    .map((element) => parsedAttribute(element, "href"))
+    .filter((href): href is string => href?.startsWith("#") === true)
+    .map((href) => href.slice(1))
+    .filter((id) => !targetIds.has(id))
     .map((id) => `Enlace interno sin destino: #${id}`);
-  return [...missingSections, ...missingItems, ...disabledButtons, ...brokenAnchors];
+  return [...missingSections, ...missingItems, ...disabledPrimaryCta, ...brokenAnchors];
+}
+
+type HtmlNode = DefaultTreeAdapterTypes.Node;
+type HtmlParent = DefaultTreeAdapterTypes.ParentNode;
+type HtmlElement = DefaultTreeAdapterTypes.Element;
+
+function parsedElements(parent: HtmlParent): HtmlElement[] {
+  const result: HtmlElement[] = [];
+  for (const node of parent.childNodes) {
+    if (!("tagName" in node)) continue;
+    result.push(node, ...parsedElements(node));
+    if ("content" in node) result.push(...parsedElements(node.content));
+  }
+  return result;
+}
+
+function parsedAttribute(element: HtmlElement, name: string) {
+  return element.attrs.find((item) => item.name === name)?.value;
+}
+
+function parsedText(parent: HtmlParent): string {
+  return parent.childNodes.map((node: HtmlNode) => {
+    if ("tagName" in node) {
+      if (node.tagName === "script" || node.tagName === "style") return "";
+      return parsedText(node);
+    }
+    return "value" in node ? node.value : "";
+  }).join(" ");
 }
 
 function normalizeContent(value: string) {
