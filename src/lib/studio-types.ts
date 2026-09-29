@@ -1,6 +1,7 @@
 import type { TechniqueId } from "@/lib/techniques";
 import type { Brief, LandingCode } from "@/lib/schemas";
 import type { DesignPlan } from "@/lib/design-plan";
+import type { ModelChoice } from "@/lib/model-choice";
 
 export type PromptResult = {
   id: string;
@@ -13,6 +14,7 @@ export type PromptResult = {
   error?: string;
   designPlan?: DesignPlan | null;
   generationMode?: "eve-design-plan" | "legacy-prompt";
+  modelChoice: ModelChoice;
 };
 
 export type ActiveLanding = {
@@ -23,4 +25,5 @@ export type ActiveLanding = {
   traceId: string;
   imageDataUrl: string | null;
   savedId: string | null;
+  modelChoice: ModelChoice;
 };

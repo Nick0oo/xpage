@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TECHNIQUE_IDS } from "@/lib/techniques";
+import { MODEL_CHOICES, DEFAULT_MODEL_CHOICE } from "@/lib/model-choice";
 
 export const techniqueIdSchema = z.enum(TECHNIQUE_IDS);
 
@@ -24,12 +25,14 @@ export const promptRequestSchema = z.discriminatedUnion("mode", [
     mode: z.literal("technique"),
     brief: briefSchema,
     techniqueId: techniqueIdSchema,
+    modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
     traceId: z.string().uuid().optional(),
   }),
   z.object({
     mode: z.literal("combine"),
     brief: briefSchema,
     techniqueIds: z.array(techniqueIdSchema).min(2).max(TECHNIQUE_IDS.length),
+    modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
     traceId: z.string().uuid().optional(),
   }),
 ]).refine(
@@ -52,6 +55,7 @@ export const landingCodeSchema = z.object({
 
 export const landingRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(12_000),
+  modelChoice: z.enum(MODEL_CHOICES).default("gemini"),
   traceId: z.string().uuid().optional(),
 });
 
