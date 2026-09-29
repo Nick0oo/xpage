@@ -24,15 +24,14 @@ function descendants(parent: Parent): Element[] {
   for (const node of parent.childNodes) {
     if (!isElement(node)) continue;
     result.push(node, ...descendants(node));
-    if (node.tagName === "template") result.push(...descendants(node.content));
+    if ("content" in node) result.push(...descendants(node.content));
   }
   return result;
 }
 
 function textContent(node: Node): string {
-  if (node.nodeName === "#text") return node.value;
-  if (!isElement(node)) return "";
-  const content = node.tagName === "template" ? node.content : node;
+  if (!isElement(node)) return "value" in node ? node.value : "";
+  const content = "content" in node ? node.content : node;
   return content.childNodes.map(textContent).join("");
 }
 
