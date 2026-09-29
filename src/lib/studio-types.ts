@@ -30,7 +30,6 @@ export type TechniqueRun = {
   modelChoice: ModelChoice;
   status: "queued" | "loading" | "ready" | "error";
   contribution: TechniqueContribution | null;
-  designPlan: DesignPlan | null;
   error?: string;
 };
 

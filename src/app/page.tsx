@@ -45,6 +45,7 @@ type ApiResponse = {
   traceId?: unknown;
   error?: unknown;
   designPlan?: unknown;
+  contribution?: unknown;
   generationMode?: unknown;
 };
 
@@ -109,12 +110,11 @@ export default function Home() {
             const restored = draft.methodRuns.flatMap((value) => {
               if (!value || typeof value !== "object") return [];
               const run = value as TechniqueRun;
-              const plan = run.designPlan ? designPlanSchema.safeParse(run.designPlan) : null;
               const contribution = run.contribution ? techniqueContributionSchema.safeParse(run.contribution) : null;
               if (typeof run.id !== "string" || typeof run.traceId !== "string" || !run.traceId || !TECHNIQUE_IDS.includes(run.techniqueId) || !MODEL_CHOICES.includes(run.modelChoice)) return [];
-              if ((run.designPlan && !plan?.success) || (run.contribution && !contribution?.success)) return [];
+              if (run.contribution && !contribution?.success) return [];
               if (!["queued", "loading", "ready", "error"].includes(run.status)) return [];
-              return [{ ...run, status: run.status === "loading" ? "error" as const : run.status, error: run.status === "loading" ? "La ejecución se interrumpió al recargar. Reintenta este método." : run.error, designPlan: plan?.success ? plan.data : null, contribution: contribution?.success ? contribution.data : null }];
+              return [{ ...run, status: run.status === "loading" ? "error" as const : run.status, error: run.status === "loading" ? "La ejecución se interrumpió al recargar. Reintenta este método." : run.error, contribution: contribution?.success ? contribution.data : null }];
             });
             setMethodRuns(restored);
             if (restored.length) setStep(3);
@@ -331,15 +331,13 @@ export default function Home() {
   async function runMethod(techniqueId: TechniqueId, traceId: string, parsedBrief: Brief, choice: ModelChoice) {
     setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId ? { ...run, status: "loading", error: undefined } : run));
     try {
-      const payload = await postJson<ApiResponse & { designPlan?: unknown }>("/api/prompts", {
+      const payload = await postJson<ApiResponse & { contribution?: unknown }>("/api/prompts", {
         mode: "technique", brief: parsedBrief, techniqueId, modelChoice: choice, traceId,
       });
-      const parsed = designPlanSchema.safeParse(payload.designPlan);
-      if (!parsed.success) throw new Error("Eve respondió, pero el aporte de este método no cumple la estructura revisable.");
-      const contribution = parsed.data.contributions.find((item) => item.techniqueId === techniqueId);
-      if (!contribution) throw new Error("La respuesta no incluyó el aporte de este método.");
+      const parsed = techniqueContributionSchema.safeParse(payload.contribution);
+      if (!parsed.success || parsed.data.techniqueId !== techniqueId) throw new Error("Eve respondió, pero el aporte de este método no cumple la estructura revisable.");
       setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId
-        ? { ...run, status: "ready", contribution, designPlan: parsed.data, error: undefined } : run));
+        ? { ...run, status: "ready", contribution: parsed.data, error: undefined } : run));
     } catch (error) {
       setMethodRuns((runs) => runs.map((run) => run.techniqueId === techniqueId
         ? { ...run, status: "error", error: error instanceof Error ? error.message : "No se pudo completar este método." } : run));
@@ -361,7 +359,7 @@ export default function Home() {
       setMethodRuns([]);
       const traceId = await createTrace(parsedBrief, techniqueIds, techniqueIds.length > 1 ? "combined" : "individual");
       setMethodRuns(techniqueIds.map((techniqueId) => ({
-        id: crypto.randomUUID(), techniqueId, traceId, modelChoice, status: "queued" as const, contribution: null, designPlan: null,
+        id: crypto.randomUUID(), techniqueId, traceId, modelChoice, status: "queued" as const, contribution: null,
       })));
       setStep(3);
       for (const techniqueId of techniqueIds) {

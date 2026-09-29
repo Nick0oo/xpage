@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CircleAlert, CircleDashed, LoaderCircle, Merge, RotateCw } from "lucide-react";
+import { Check, CircleAlert, CircleDashed, Clapperboard, Image, LoaderCircle, Merge, MessageCircle, Palette, Route, RotateCw, ScanSearch, Scissors, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,17 @@ const stateCopy = {
   error: "Necesita atención",
 } as const;
 
+const methodVisuals = {
+  "seed-strings": { Icon: Palette, color: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300" },
+  "ambitious-prompts": { Icon: Route, color: "bg-sky-500/10 text-sky-700 dark:text-sky-300" },
+  "creator-critic": { Icon: ScanSearch, color: "bg-amber-500/10 text-amber-800 dark:text-amber-300" },
+  "image-assets": { Icon: Image, color: "bg-violet-500/10 text-violet-700 dark:text-violet-300" },
+  "video-assets": { Icon: Clapperboard, color: "bg-cyan-500/10 text-cyan-800 dark:text-cyan-300" },
+  "subtractive-design": { Icon: Scissors, color: "bg-rose-500/10 text-rose-700 dark:text-rose-300" },
+  "negative-constraints": { Icon: ShieldCheck, color: "bg-orange-500/10 text-orange-800 dark:text-orange-300" },
+  "human-copy": { Icon: MessageCircle, color: "bg-emerald-500/10 text-emerald-800 dark:text-emerald-300" },
+} as const;
+
 export function MethodContributionWorkspace({ runs, combining, disabled = false, editDisabled = false, onEdit, onCommit, onRetry, onCombine }: Props) {
   const ready = runs.length > 0 && runs.every((run) => run.status === "ready" && run.contribution?.decision.trim() && run.contribution.artifact.trim());
   const doneCount = runs.filter((run) => run.status === "ready").length;
@@ -43,18 +54,35 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
         </Button>
       </header>
 
+      <div aria-label="Síntesis de aportes por método" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {runs.map((run) => {
+          const technique = getTechnique(run.techniqueId);
+          const visual = methodVisuals[run.techniqueId];
+          return (
+            <a key={run.id} href={`#method-${run.techniqueId}`} className="group flex min-h-24 gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/30 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${visual.color}`}><visual.Icon size={17} aria-hidden="true" /></span>
+              <span className="min-w-0">
+                <span className="block text-xs font-semibold">{technique.name} · {run.status === "ready" ? "listo" : run.status === "error" ? "error" : run.status === "loading" ? "en curso" : "en cola"}</span>
+                <span className="mt-1 line-clamp-2 block text-xs leading-4 text-muted-foreground">{run.contribution?.artifact ?? technique.artifact}</span>
+              </span>
+            </a>
+          );
+        })}
+      </div>
+
       <ol className="grid gap-4 xl:grid-cols-2">
         {runs.map((run, index) => {
           const technique = getTechnique(run.techniqueId);
           const contribution = run.contribution;
+          const visual = methodVisuals[run.techniqueId];
           const Icon = run.status === "ready" ? Check : run.status === "error" ? CircleAlert : run.status === "loading" ? LoaderCircle : CircleDashed;
           return (
-            <li key={run.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+            <li key={run.id} id={`method-${run.techniqueId}`} className="overflow-hidden rounded-2xl border border-border bg-card">
               <div className="flex items-start justify-between gap-3 border-b border-border/70 bg-muted/30 p-4 sm:p-5">
                 <div className="flex min-w-0 gap-3">
-                  <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 font-display text-sm font-semibold text-primary">{String(index + 1).padStart(2, "0")}</span>
+                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${visual.color}`}><visual.Icon size={19} aria-hidden="true" /></span>
                   <div className="min-w-0">
-                    <h4 className="font-semibold">{technique.name}</h4>
+                    <h4 className="font-semibold"><span className="mr-2 font-mono text-xs text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>{technique.name}</h4>
                     <p className="mt-1 text-sm leading-5 text-muted-foreground">{technique.purpose}</p>
                   </div>
                 </div>
@@ -77,7 +105,7 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
                 {run.status === "loading" ? (
                   <div className="flex items-center gap-3 rounded-xl bg-primary/[0.04] px-3.5 py-4 text-sm text-muted-foreground" role="status">
                     <LoaderCircle size={17} className="animate-spin text-primary" aria-hidden="true" />
-                    Eve está aplicando la skill y preparando un plan inspeccionable para {technique.name.toLowerCase()}.
+                    Eve está aplicando la skill y preparando el aporte propio de {technique.name.toLowerCase()}.
                   </div>
                 ) : null}
                 {run.status === "queued" ? <p className="text-sm text-muted-foreground">Esperando a que inicie esta ejecución.</p> : null}
@@ -94,17 +122,15 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
                         <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={3000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
                       </label>
                     </div>
-                    <div className="rounded-xl border border-border/80 bg-background p-3.5">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Propuesta estructurada</p>
-                      <p className="mt-2 text-sm font-medium leading-5">{run.designPlan?.concept}</p>
-                      <ul className="mt-3 grid gap-2 sm:grid-cols-2">
-                        {run.designPlan?.sections.slice(0, 4).map((section) => (
-                          <li key={section.id} className="rounded-lg bg-muted/50 p-2.5">
-                            <span className="block text-xs font-semibold">{section.headline}</span>
-                            <span className="mt-1 block text-xs leading-4 text-muted-foreground">{section.purpose}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <div className="rounded-xl bg-muted/40 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Entradas consideradas</p>
+                        <p className="mt-1.5 text-sm leading-5">{technique.inputs}</p>
+                      </div>
+                      <div className="rounded-xl bg-muted/40 p-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Qué entrega este método</p>
+                        <p className="mt-1.5 text-sm leading-5">{contribution.artifact}</p>
+                      </div>
                     </div>
                     {contribution.tensions.length > 0 || contribution.resolution ? (
                       <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-3 text-sm">

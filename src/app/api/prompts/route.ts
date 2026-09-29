@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTechnique } from "@/lib/techniques";
 import { promptRequestSchema, type PromptRequest } from "@/lib/schemas";
-import { designPlanSchema, validateTechniqueCoverage } from "@/lib/design-plan";
+import { designPlanSchema, techniqueContributionSchema, validateTechniqueCoverage } from "@/lib/design-plan";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { creativeDirectionsResponseSchema } from "@/lib/creative-directions";
 import {
@@ -15,52 +15,46 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const parsed = promptRequestSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json({ error: "Revisa el brief y la selección de técnicas.", code: "invalid_input" }, { status: 400 });
+    return NextResponse.json({ error: "Revisa el brief y la selecci\u00f3n de t\u00e9cnicas.", code: "invalid_input" }, { status: 400 });
   }
 
   const input = parsed.data;
   if (input.mode === "directions") return generateCreativeDirections(input);
+  if (input.mode === "technique") return generateTechniqueContribution(input);
 
-  const techniqueIds = input.mode === "technique" ? [input.techniqueId] : input.techniqueIds;
-  if (input.mode === "combine") {
-    const contributionIds = input.methodContributions.map(({ techniqueId }) => techniqueId);
-    if (new Set(contributionIds).size !== contributionIds.length || contributionIds.length !== techniqueIds.length || techniqueIds.some((id) => !contributionIds.includes(id))) {
-      return NextResponse.json({ error: "Los aportes recibidos no corresponden exactamente a los métodos seleccionados.", code: "invalid_contributions" }, { status: 400 });
-    }
+  const techniqueIds = input.techniqueIds;
+  const contributionIds = input.methodContributions.map(({ techniqueId }) => techniqueId);
+  if (new Set(contributionIds).size !== contributionIds.length || contributionIds.length !== techniqueIds.length || techniqueIds.some((id) => !contributionIds.includes(id))) {
+    return NextResponse.json({ error: "Los aportes recibidos no corresponden exactamente a los m\u00e9todos seleccionados.", code: "invalid_contributions" }, { status: 400 });
   }
   const techniques = techniqueIds.map(getTechnique);
   const briefText = [
     `Tema o industria: ${input.brief.topic}`,
     `Producto y beneficio: ${input.brief.offer}`,
-    `Público: ${input.brief.audience}`,
-    `Tono o dirección visual: ${input.brief.tone}`,
+    `P\u00fablico: ${input.brief.audience}`,
+    `Tono o direcci\u00f3n visual: ${input.brief.tone}`,
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
   ].join("\n");
-  const skillNames: string[] = techniques.map(({ id }) => id);
-  if (input.mode === "combine") skillNames.push("combine");
-  const task = input.mode === "combine"
-    ? `Combina con criterio estos métodos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.`
-    : `Aplica el método ${techniques[0].id} (${techniques[0].name}) con profundidad.`;
-  const message = `${task}
+  const skillNames = [...techniques.map(({ id }) => id), "combine"];
+  const message = `Combina con criterio estos m\u00e9todos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.
 
 Carga y sigue estas skills de Eve: ${skillNames.join(", ")}. Trata sus instrucciones como procedimientos que debes ejecutar, no como etiquetas.
-${input.mode === "combine" ? `
-APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensión, resuélvela según hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisión en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
-${JSON.stringify(input.methodContributions, null, 2)}
-` : ""}
 
-Devuelve un DesignPlan completo según el esquema. Trabaja primero una propuesta completa, evalúala y revisa el resultado antes de responder. Si el método creator-critic está seleccionado, rellena su propuesta, hallazgos y revisión explícitos. Describe decisiones observables, nunca razonamiento privado.
+APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensi\u00f3n, resu\u00e9lvela seg\u00fan hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisi\u00f3n en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
+${JSON.stringify(input.methodContributions, null, 2)}
+
+Devuelve un DesignPlan completo seg\u00fan el esquema. Trabaja primero una propuesta completa, eval\u00fala y revisa el resultado antes de responder. Si el m\u00e9todo creator-critic est\u00e1 seleccionado, rellena su propuesta, hallazgos y revisi\u00f3n expl\u00edcitos. Describe decisiones observables, nunca razonamiento privado.
 
 Brief (fuente de hechos):
 ${briefText}
 Brief completo y controles elegidos:
 ${JSON.stringify(input.brief)}
 
-IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribución debe identificar la técnica, versión de skill, decisión concreta, artefacto visible y estado. Registra tensiones reales y su resolución. La cobertura de contribuciones debe coincidir exactamente con los métodos seleccionados.
+IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribuci\u00f3n debe identificar la t\u00e9cnica, versi\u00f3n de skill, decisi\u00f3n concreta, artefacto visible y estado. Registra tensiones reales y su resoluci\u00f3n. La cobertura de contribuciones debe coincidir exactamente con los m\u00e9todos seleccionados.
 
-No inventes precios, cifras, clientes, testimonios, premios, funciones o garantías. Distingue hechos respaldados del brief, hipótesis y afirmaciones descartadas. El campo prompt es un prompt editable y completo en español para construir la landing. Incluye decisiones de estrategia, voz, recorrido, dirección visual, detalle de secciones, comportamiento accesible y atributos data-xpage-section/data-xpage-slot que conecten HTML y plan.`;
+No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\u00edas. Distingue hechos respaldados del brief, hip\u00f3tesis y afirmaciones descartadas. El campo prompt es un prompt editable y completo en espa\u00f1ol para construir la landing. Incluye decisiones de estrategia, voz, recorrido, direcci\u00f3n visual, detalle de secciones, comportamiento accesible y atributos data-xpage-section/data-xpage-slot que conecten HTML y plan.`;
   const startedAt = Date.now();
-  const phase = input.mode === "combine" ? "combined-design-plan" : "technique-design-plan";
+  const phase = "combined-design-plan";
 
   try {
     const { data } = await runEveStructured({
@@ -70,13 +64,13 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant�
     });
     const plan = designPlanSchema.safeParse(data);
     if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
-      throw new Error("Eve devolvió un DesignPlan incompleto o no cubre los métodos seleccionados.");
+      throw new Error("Eve devolvi\u00f3 un DesignPlan incompleto o no cubre los m\u00e9todos seleccionados.");
     }
 
     await recordTraceStep(input.traceId, {
       eventType: "decision",
       phase,
-      title: input.mode === "combine" ? "Plan combinado · Eve" : "Plan del método · Eve",
+      title: "Integraci\u00f3n de aportes \u00b7 Eve",
       techniqueIds,
       provider: "eve-local",
       model: input.modelChoice,
@@ -84,7 +78,7 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant�
       outputText: plan.data.prompt,
       output: plan.data,
       skillVersions: Object.fromEntries(plan.data.contributions.map(({ techniqueId, skillVersion }) => [techniqueId, skillVersion])),
-      decisionSummary: plan.data.contributions.map(({ techniqueId, decision, status, resolution }) => `${techniqueId} (${status}): ${decision}${resolution ? ` · Resolución: ${resolution}` : ""}`).join("\n"),
+      decisionSummary: plan.data.contributions.map(({ techniqueId, decision, status, resolution }) => `${techniqueId} (${status}): ${decision}${resolution ? ` \u00b7 Resoluci\u00f3n: ${resolution}` : ""}`).join("\n"),
       references: [{ kind: "source", id: "brief", label: "Brief aportado", sourceType: "brief" }],
       durationMs: Date.now() - startedAt,
     });
@@ -101,7 +95,7 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant�
     const failureReason = safeFailureMessage(error);
     await recordTraceStep(input.traceId, {
       phase,
-      title: "Plan de diseño · Eve",
+      title: "Integraci\u00f3n de aportes \u00b7 Eve",
       techniqueIds,
       provider: "eve-local",
       model: input.modelChoice,
@@ -112,7 +106,64 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant�
     }).catch(() => undefined);
     await updateTraceStatus(input.traceId, "failed");
     return NextResponse.json({
-      error: `Eve no pudo completar ${input.mode === "combine" ? "la combinación" : `el aporte de ${techniques[0].name}`} con ${input.modelChoice}. ${failureReason}`,
+      error: `Eve no pudo combinar los aportes con ${input.modelChoice}. ${failureReason}`,
+      code: "eve_model_unavailable",
+    }, { status: 503 });
+  }
+}
+
+async function generateTechniqueContribution(input: Extract<PromptRequest, { mode: "technique" }>) {
+  const technique = getTechnique(input.techniqueId);
+  const message = `Aplica solo el m\u00e9todo ${technique.id} (${technique.name}) y sigue su skill de Eve. Devuelve un aporte peque\u00f1o, estructurado y revisable por una persona. No construyas DesignPlan, secciones, HTML ni prompt final; eso corresponde a la combinaci\u00f3n posterior.
+
+Prop\u00f3sito: ${technique.purpose}
+Entradas del m\u00e9todo: ${technique.inputs}
+Artefacto esperado: ${technique.artifact}
+Instrucci\u00f3n espec\u00edfica: ${technique.instruction}
+
+Brief completo:
+${JSON.stringify(input.brief)}
+
+Devuelve solo los campos del esquema TechniqueContribution. Usa techniqueId=${technique.id}, la versi\u00f3n real de la skill, estado applied/modified/omitted, una decisi\u00f3n concreta, artefacto visible, tensiones y resoluci\u00f3n breve. Si se omite, incluye el motivo. No inventes hechos ni muestres razonamiento privado.`;
+  const startedAt = Date.now();
+  const phase = "technique-contribution";
+  try {
+    const { data } = await runEveStructured({ modelChoice: input.modelChoice, message, outputSchema: techniqueContributionSchema });
+    const parsed = techniqueContributionSchema.safeParse(data);
+    if (!parsed.success || parsed.data.techniqueId !== input.techniqueId) {
+      throw new Error("Eve devolvi\u00f3 un aporte que no corresponde al m\u00e9todo seleccionado.");
+    }
+    await recordTraceStep(input.traceId, {
+      eventType: "decision",
+      phase,
+      title: `Aporte \u00b7 ${technique.name} \u00b7 Eve`,
+      techniqueIds: [technique.id],
+      provider: "eve-local",
+      model: input.modelChoice,
+      userPrompt: message,
+      outputText: `${parsed.data.decision}\n${parsed.data.artifact}`,
+      output: parsed.data,
+      skillVersions: { [technique.id]: parsed.data.skillVersion },
+      decisionSummary: `${parsed.data.status}: ${parsed.data.decision}${parsed.data.resolution ? ` \u00b7 Resoluci\u00f3n: ${parsed.data.resolution}` : ""}`,
+      references: [{ kind: "source", id: `technique:${technique.id}`, label: technique.name }],
+      durationMs: Date.now() - startedAt,
+    });
+    return NextResponse.json({ contribution: parsed.data, traceId: input.traceId, modelChoice: input.modelChoice });
+  } catch (error) {
+    const failureReason = safeFailureMessage(error);
+    await recordTraceStep(input.traceId, {
+      phase,
+      title: `Aporte \u00b7 ${technique.name} \u00b7 Eve`,
+      techniqueIds: [technique.id],
+      provider: "eve-local",
+      model: input.modelChoice,
+      userPrompt: message,
+      status: "failed",
+      errorMessage: failureReason.slice(0, 500),
+      durationMs: Date.now() - startedAt,
+    }).catch(() => undefined);
+    return NextResponse.json({
+      error: `Eve no pudo completar el aporte de ${technique.name} con ${input.modelChoice}. ${failureReason}`,
       code: "eve_model_unavailable",
     }, { status: 503 });
   }
