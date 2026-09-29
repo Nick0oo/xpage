@@ -30,15 +30,12 @@ export function EveModelSelector({ value, onChange }: { value: ModelChoice; onCh
         ];
         setModels(nextModels);
         setImageConfigured(payload.imageConfigured === true);
-        const saved = window.localStorage.getItem("xpage.model-choice") as ModelChoice | null;
-        const nextChoice = nextModels.some((model) => model.id === saved && model.enabled) ? saved! : payload.modelId;
-        onChange(nextChoice);
         const health = await fetch("/eve/v1/health");
         if (!health.ok) throw new Error("Eve no responde.");
         setStatus("Eve conectado. El acceso a ChatGPT se administra localmente desde Eve.");
       })
       .catch(() => setStatus("Inicia pnpm dev y configura /login → ChatGPT Subscription en Eve."));
-  }, [onChange]);
+  }, []);
 
   function saveModel(nextModel: ModelChoice) {
     setSaving(true);

@@ -98,6 +98,7 @@ export default function Home() {
 
   useEffect(() => {
     const raw = window.sessionStorage.getItem("xpage-method-workflow");
+    let restoredWorkflowModel = false;
     if (raw) {
       try {
         const draft = JSON.parse(raw) as Record<string, unknown>;
@@ -105,7 +106,10 @@ export default function Home() {
         if (draft.version === 1 && parsedBrief.success) {
           setBrief(parsedBrief.data);
           if (Array.isArray(draft.selectedIds)) setSelectedIds(draft.selectedIds.filter((id): id is TechniqueId => typeof id === "string" && ["seed-strings", "ambitious-prompts", "creator-critic", "image-assets", "video-assets", "subtractive-design", "negative-constraints", "human-copy"].includes(id)));
-          if (typeof draft.modelChoice === "string" && MODEL_CHOICES.includes(draft.modelChoice as ModelChoice)) setModelChoice(draft.modelChoice as ModelChoice);
+          if (typeof draft.modelChoice === "string" && MODEL_CHOICES.includes(draft.modelChoice as ModelChoice)) {
+            setModelChoice(draft.modelChoice as ModelChoice);
+            restoredWorkflowModel = true;
+          }
           if (Array.isArray(draft.methodRuns)) {
             const restored = draft.methodRuns.flatMap((value) => {
               if (!value || typeof value !== "object") return [];
@@ -134,6 +138,10 @@ export default function Home() {
       } catch {
         window.sessionStorage.removeItem("xpage-method-workflow");
       }
+    }
+    if (!restoredWorkflowModel) {
+      const savedModel = window.localStorage.getItem("xpage.model-choice");
+      if (savedModel && MODEL_CHOICES.includes(savedModel as ModelChoice)) setModelChoice(savedModel as ModelChoice);
     }
     skipWorkflowWrite.current = true;
   }, []);
@@ -414,6 +422,7 @@ export default function Home() {
   }
 
   function changeModelChoice(value: ModelChoice) {
+    if (value === modelChoice) return;
     setModelChoice(value);
     if (methodRuns.length > 0 || promptResults.length > 0) {
       setMethodRuns([]);
