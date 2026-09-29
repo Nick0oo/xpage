@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { getTechnique } from "@/lib/techniques";
-import { promptRequestSchema } from "@/lib/schemas";
+import { promptRequestSchema, type PromptRequest } from "@/lib/schemas";
 import { designPlanSchema, validateTechniqueCoverage } from "@/lib/design-plan";
 import { runEveStructured } from "@/lib/eve-runtime";
+import { creativeDirectionsResponseSchema } from "@/lib/creative-directions";
 import {
   recordTraceStep,
   setGenerationTraceStatus,
@@ -18,6 +19,8 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data;
+  if (input.mode === "directions") return generateCreativeDirections(input);
+
   const techniqueIds = input.mode === "technique" ? [input.techniqueId] : input.techniqueIds;
   const techniques = techniqueIds.map(getTechnique);
   const briefText = [
@@ -99,6 +102,98 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant�
     return NextResponse.json({
       error: `Eve no pudo generar el plan con ${input.modelChoice}. Revisa su estado local y credenciales, o selecciona un proveedor configurado.`,
       code: "eve_model_unavailable",
+    }, { status: 503 });
+  }
+}
+
+async function generateCreativeDirections(input: Extract<PromptRequest, { mode: "directions" }>) {
+  const selected = input.techniqueIds.map(getTechnique);
+  const skillNames: string[] = selected.map(({ id }) => id);
+  if (selected.length > 1) skillNames.push("combine");
+  const briefText = [
+    `Tema: ${input.brief.topic}`,
+    `Oferta: ${input.brief.offer}`,
+    `Público: ${input.brief.audience}`,
+    `Tono: ${input.brief.tone}`,
+    `CTA: ${input.brief.cta || "proponer una acción coherente"}`,
+    `Marca o logo descrito: ${input.brief.brand || "no proporcionado"}`,
+    `Paleta preferida: ${input.brief.palette || "sin preferencia; proponer con roles y valores"}`,
+    `Referencias aportadas por el usuario (no verificadas): ${input.brief.references || "ninguna"}`,
+    `Evitar: ${input.brief.avoid || "sin exclusiones adicionales"}`,
+    `Objetivo: ${input.brief.objective || "entender la oferta y facilitar la acción indicada"}`,
+    `Variedad: ${input.brief.variety}; movimiento: ${input.brief.movement}; densidad: ${input.brief.density}.`,
+  ].join("\n");
+  const message = `Antes de escribir código, genera 2 o 3 direcciones creativas realmente distintas para el mismo brief y métodos seleccionados. Haz una sola respuesta estructurada con una dirección y un DesignPlan completo por alternativa. No hagas una secuencia de llamadas ni copies la misma composición cambiando solo colores.
+
+Carga y aplica estas skills de Eve: ${skillNames.join(", ")}. Cada DesignPlan debe cubrir exactamente todos los métodos elegidos; los aportes deben estar presentes también en cada alternativa.
+
+Para cada dirección define primera pantalla/hero, narrativa y ritmo de secciones, paleta por roles, tipografía disponible, motivo visual, uso de imagen/video (solo especificación), razón breve ligada al brief y al menos dos diferencias estructurales observables respecto de otra opción. Usa opciones contrastantes: por ejemplo, editorial asimétrica frente a demostración modular o narrativa de caso frente a recorrido de producto, solo si encaja con este brief. La elección de variedad controla cuánto divergen; no conviertas movimiento en animación automática. Respeta movimiento reducido y densidad elegida.
+
+Cada campo designPlan.prompt debe ser un prompt final, específico y ejecutable derivado de esa misma dirección, método, DesignDNA, secciones, copy, recursos y restricciones. Incluye data-xpage-section y data-xpage-slot. No uses texto de relleno ni alargues para aparentar calidad. Incluye creativeSettings y creativeDirection dentro de cada plan, con id coincidente con la dirección.
+
+Brief:
+${briefText}
+
+Decisiones de métodos seleccionados: ${selected.map(({ id, name, instruction }) => `${id} (${name}): ${instruction}`).join("\n")}
+
+No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido de las referencias. Las URLs/descripciones son material de referencia proporcionado por el usuario, no evidencia verificada. Si no hay identidad de marca, declara cada dirección como propuesta creativa. Devuelve solo el objeto del esquema.`;
+  const startedAt = Date.now();
+  try {
+    const { data } = await runEveStructured({
+      modelChoice: input.modelChoice,
+      message,
+      outputSchema: creativeDirectionsResponseSchema,
+    });
+    const parsed = creativeDirectionsResponseSchema.safeParse(data);
+    const ids = parsed.success ? new Set(parsed.data.directions.map(({ id }) => id)) : new Set<string>();
+    const titles = parsed.success ? new Set(parsed.data.directions.map(({ title }) => title.trim().toLocaleLowerCase())) : new Set<string>();
+    const firstScreens = parsed.success ? new Set(parsed.data.directions.map(({ firstScreen }) => firstScreen.trim().toLocaleLowerCase())) : new Set<string>();
+    if (!parsed.success || ids.size !== parsed.data.directions.length || titles.size !== parsed.data.directions.length || firstScreens.size !== parsed.data.directions.length || parsed.data.directions.some((direction) =>
+      direction.designPlan.creativeDirection?.id !== direction.id ||
+      !direction.designPlan.creativeSettings ||
+      direction.designPlan.creativeSettings.objective !== input.brief.objective ||
+      direction.designPlan.creativeSettings.variety !== input.brief.variety ||
+      direction.designPlan.creativeSettings.movement !== input.brief.movement ||
+      direction.designPlan.creativeSettings.density !== input.brief.density ||
+      !validateTechniqueCoverage(direction.designPlan, input.techniqueIds)
+    )) {
+      throw new Error("Eve devolvió direcciones duplicadas o planes incompletos.");
+    }
+
+    const directions = parsed.data.directions;
+    await recordTraceStep(input.traceId, {
+      eventType: "decision",
+      phase: "creative-direction-options",
+      title: "Direcciones creativas · Eve",
+      techniqueIds: input.techniqueIds,
+      provider: "eve-local",
+      model: input.modelChoice,
+      userPrompt: message,
+      outputText: directions.map(({ title, rationale, structuralDifference }) => `${title}: ${rationale} · ${structuralDifference.join("; ")}`).join("\n"),
+      output: { directions },
+      decisionSummary: `Propuestas: ${directions.map(({ title }) => title).join(" · ")}`,
+      references: [{ kind: "source", id: "brief", label: "Brief creativo", sourceType: "brief" }],
+      durationMs: Date.now() - startedAt,
+    });
+    await updateTraceStatus(input.traceId, "direction-selection-pending");
+    return NextResponse.json({ directions, traceId: input.traceId, techniqueIds: input.techniqueIds, modelChoice: input.modelChoice });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Eve no pudo proponer direcciones.";
+    await recordTraceStep(input.traceId, {
+      phase: "creative-direction-options",
+      title: "Direcciones creativas · Eve",
+      techniqueIds: input.techniqueIds,
+      provider: "eve-local",
+      model: input.modelChoice,
+      userPrompt: message,
+      status: "failed",
+      errorMessage: message.slice(0, 500),
+      durationMs: Date.now() - startedAt,
+    }).catch(() => undefined);
+    await updateTraceStatus(input.traceId, "failed");
+    return NextResponse.json({
+      error: `Eve no pudo proponer direcciones con ${input.modelChoice}. Revisa el estado local e inténtalo de nuevo.`,
+      code: "eve_directions_unavailable",
     }, { status: 503 });
   }
 }

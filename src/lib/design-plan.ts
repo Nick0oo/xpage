@@ -39,6 +39,19 @@ export const techniqueContributionSchema = z.object({
 export const designPlanSchema = z.object({
   schemaVersion: z.literal("1.0.0"),
   concept: z.string().min(1),
+  creativeSettings: z.object({
+    objective: z.string(),
+    variety: z.enum(["sutil", "equilibrada", "atrevida"]),
+    movement: z.enum(["reducido", "moderado", "dinamico"]),
+    density: z.enum(["aireada", "equilibrada", "densa"]),
+    referenceTreatment: z.string(),
+  }).optional(),
+  creativeDirection: z.object({
+    id: z.string().regex(/^[a-z0-9-]+$/),
+    title: z.string().min(1),
+    rationale: z.string().min(1),
+    structuralDifference: z.array(z.string().min(1)).min(2),
+  }).optional(),
   designDNA: z.object({
     brandMotif: z.string().min(1),
     palette: z.array(z.object({ role: z.string().min(1), value: z.string().min(1) })).min(2),

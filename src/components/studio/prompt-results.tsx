@@ -10,6 +10,7 @@ type PromptResultsProps = {
   results: PromptResult[];
   activeResultId: string | null;
   onPromptChange: (id: string, prompt: string) => void;
+  onPromptCommit: (id: string, prompt: string) => void;
   onRun: (id: string) => void;
   onRetry: (id: string) => void;
 };
@@ -18,6 +19,7 @@ export function PromptResults({
   results,
   activeResultId,
   onPromptChange,
+  onPromptCommit,
   onRun,
   onRetry,
 }: PromptResultsProps) {
@@ -53,7 +55,7 @@ export function PromptResults({
                 <div className="min-w-0">
                   <CardTitle className="flex items-center gap-2 text-sm font-medium">
                     <span className="text-xs tabular-nums text-muted-foreground">0{index + 1}</span>
-                    <span className="truncate">{result.combined ? "Prompt combinado" : names[0]}</span>
+                    <span className="truncate">{result.creativeDirection?.title ?? (result.combined ? "Prompt combinado" : names[0])}</span>
                   </CardTitle>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{names.join(" · ")} · {result.modelChoice}</p>
                 </div>
@@ -84,6 +86,7 @@ export function PromptResults({
                 <Textarea
                   value={result.prompt}
                   onChange={(event) => onPromptChange(result.id, event.target.value)}
+                  onBlur={(event) => onPromptCommit(result.id, event.currentTarget.value)}
                   placeholder={isLoading ? "Preparando el prompt…" : "El prompt aparecerá aquí."}
                   disabled={isLoading || result.status !== "ready"}
                   aria-label={`Prompt de ${names.join(" y ")}`}
@@ -93,6 +96,16 @@ export function PromptResults({
 
                 {result.status === "ready" ? (
                   <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                    {result.creativeDirection ? (
+                      <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
+                        <p className="text-xs font-semibold">Dirección elegida · {result.creativeDirection.title}</p>
+                        <p className="mt-1 text-xs leading-5">{result.creativeDirection.rationale}</p>
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">Hero: {result.creativeDirection.firstScreen} · Recorrido: {result.creativeDirection.narrative}</p>
+                        <ul className="mt-1 flex flex-wrap gap-1.5">
+                          {result.creativeDirection.structuralDifference.map((difference) => <li key={difference} className="rounded-full bg-background px-2 py-1 text-[11px]">{difference}</li>)}
+                        </ul>
+                      </div>
+                    ) : null}
                     <p className="text-xs font-semibold">
                       {result.generationMode === "eve-design-plan" ? `DesignPlan verificado · ${result.modelChoice}` : `Resultado guardado · ${result.modelChoice}`}
                     </p>
