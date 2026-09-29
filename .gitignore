@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.eve/
 /out/
 
 # production

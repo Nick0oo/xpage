@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { BookOpen, Code2, GitBranch, WandSparkles } from "lucide-react";
+import { BookOpen, Code2, GitBranch, Sparkles, WandSparkles } from "lucide-react";
 
 type AppShellProps = {
   children: React.ReactNode;
-  currentPage: "create" | "library" | "traces";
+  currentPage: "create" | "library" | "traces" | "eve";
 };
 
 export function AppShell({ children, currentPage }: AppShellProps) {
@@ -57,6 +57,18 @@ export function AppShell({ children, currentPage }: AppShellProps) {
             >
               <GitBranch size={15} strokeWidth={1.8} aria-hidden="true" />
               Trazabilidad
+            </Link>
+            <Link
+              href="/eve-prueba"
+              aria-current={currentPage === "eve" ? "page" : undefined}
+              className={`inline-flex min-h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                currentPage === "eve"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Sparkles size={15} strokeWidth={1.8} aria-hidden="true" />
+              Eve
             </Link>
           </nav>
         </div>
