@@ -7,6 +7,7 @@ import { AppShell } from "@/components/app-shell";
 import { BriefForm } from "@/components/studio/brief-form";
 import { PromptResults } from "@/components/studio/prompt-results";
 import { TechniqueSelector } from "@/components/studio/technique-selector";
+import { EveModelSelector } from "@/components/studio/eve-model-selector";
 import { Button } from "@/components/ui/button";
 import { CoverImageGenerator } from "@/components/preview/cover-image-generator";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
@@ -14,6 +15,7 @@ import type { TechniqueId } from "@/lib/techniques";
 import type { ActiveLanding, PromptResult } from "@/lib/studio-types";
 import { saveLanding } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName } from "@/lib/preview-document";
+import { DEFAULT_MODEL_CHOICE, type ModelChoice } from "@/lib/model-choice";
 
 const emptyBrief: Brief = {
   topic: "",
@@ -74,6 +76,7 @@ export default function Home() {
   const [saveLoading, setSaveLoading] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState("");
+  const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
 
   const busy = batchGenerating || activeResultId !== null;
 
@@ -150,7 +153,7 @@ export default function Home() {
     const payload = await postJson<{ id: string }>("/api/traces", {
       category: "landing-page",
       title: parsedBrief.topic,
-      context: { brief: parsedBrief, techniqueIds, mode },
+      context: { brief: parsedBrief, techniqueIds, mode, modelChoice },
     });
     if (typeof payload.id !== "string" || !payload.id) {
       throw new Error("No se pudo iniciar la trazabilidad de esta landing.");
@@ -170,6 +173,7 @@ export default function Home() {
         generationMode: result.generationMode ?? "legacy-prompt",
         designPlan: result.designPlan ?? null,
         sourcePromptTraceId: result.traceId,
+        modelChoice: result.modelChoice,
       },
       sourceTraceId: result.traceId,
     });
@@ -188,7 +192,7 @@ export default function Home() {
     );
 
     try {
-      const payload = await postJson<Pick<PromptResult, "prompt" | "designPlan" | "generationMode">>("/api/prompts", { ...request, traceId });
+      const payload = await postJson<Pick<PromptResult, "prompt" | "designPlan" | "generationMode">>("/api/prompts", { ...request, modelChoice: request.modelChoice, traceId });
       if (typeof payload.prompt !== "string" || !payload.prompt.trim()) {
         throw new Error("La IA devolvió una respuesta vacía. Inténtalo de nuevo.");
       }
@@ -242,12 +246,14 @@ export default function Home() {
           traceId,
           prompt: "",
           status: "loading",
+          modelChoice,
         };
         setPromptResults((current) => [...current, result]);
         await generatePrompt(resultId, traceId, {
           mode: "technique",
           brief: parsedBrief,
           techniqueId,
+          modelChoice,
         });
       }
     } catch (error) {
@@ -282,9 +288,10 @@ export default function Home() {
           traceId,
           prompt: "",
           status: "loading",
+          modelChoice,
         },
       ]);
-      await generatePrompt(resultId, traceId, { mode: "combine", brief: parsedBrief, techniqueIds });
+      await generatePrompt(resultId, traceId, { mode: "combine", brief: parsedBrief, techniqueIds, modelChoice });
     } catch (error) {
       setFormError(error instanceof Error ? error.message : "No se pudo registrar la combinación.");
     } finally {
@@ -297,8 +304,8 @@ export default function Home() {
     if (!result) return;
 
     const request: PromptRequest = result.combined
-      ? { mode: "combine", brief: result.brief, techniqueIds: result.techniqueIds }
-      : { mode: "technique", brief: result.brief, techniqueId: result.techniqueIds[0] };
+      ? { mode: "combine", brief: result.brief, techniqueIds: result.techniqueIds, modelChoice: result.modelChoice }
+      : { mode: "technique", brief: result.brief, techniqueId: result.techniqueIds[0], modelChoice: result.modelChoice };
     void generatePrompt(resultId, result.traceId, request);
   }
 
@@ -312,6 +319,7 @@ export default function Home() {
       const traceId = await createLandingTrace(result);
       const payload = await postJson<unknown>("/api/landings", {
         prompt: result.prompt,
+        modelChoice: result.modelChoice,
         traceId,
       });
       const parsedCode = landingCodeSchema.safeParse(payload);
@@ -336,6 +344,7 @@ export default function Home() {
         traceId: landingTraceId,
         imageDataUrl: null,
         savedId: null,
+        modelChoice: result.modelChoice,
       });
       setImageError("");
       setSaveMessage("");
@@ -622,6 +631,7 @@ export default function Home() {
             </div>
 
             <TechniqueSelector selected={selectedIds} disabled={busy} onToggle={toggleTechnique} />
+            <EveModelSelector value={modelChoice} onChange={setModelChoice} />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <section className="flex flex-col rounded-2xl border border-border bg-card p-4 sm:p-5">

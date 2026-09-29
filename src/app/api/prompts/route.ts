@@ -1,7 +1,6 @@
 import { APICallError, generateText, NoObjectGeneratedError, Output } from "ai";
 import { NextResponse } from "next/server";
 import {
-  generateTextWithFallback,
   getGeminiModel,
   getOpenRouterTextFallbackModel,
   getOpenRouterTextModel,
@@ -15,6 +14,7 @@ import { getTechnique } from "@/lib/techniques";
 import { generatedPromptSchema, promptRequestSchema } from "@/lib/schemas";
 import { Client } from "eve/client";
 import { designPlanSchema, validateTechniqueCoverage } from "@/lib/design-plan";
+import { isEveModel } from "@/lib/model-choice";
 import {
   recordProviderAttempts,
   recordTraceStep,
@@ -62,13 +62,16 @@ export async function POST(request: Request) {
   const eveOrigin = process.env.EVE_ORIGIN?.trim() || "http://127.0.0.1:3000";
   const eveStartedAt = Date.now();
   const evePhase = input.mode === "combine" ? "combined-design-plan" : "technique-design-plan";
-  try {
-    const client = new Client({ host: `${eveOrigin.replace(/\/$/, "")}/eve/v1` });
+  if (isEveModel(input.modelChoice)) try {
+    const client = new Client({ host: eveOrigin.replace(/\/$/, "") });
     const task = input.mode === "combine"
       ? `Combina estas técnicas: ${selectedTechniques.map(({ id, name }) => `${id} (${name})`).join(", ")}. Carga y aplica su skill versionada y la skill combine.`
       : `Aplica la técnica ${selectedTechniques[0].id} (${selectedTechniques[0].name}). Carga y aplica su skill versionada.`;
     const prompt = `${task}\n\nEntrega un DesignPlan completo para XPage con los campos del esquema. Cada contribución debe resumir decisiones observables, nunca razonamiento privado.\n\nBrief (fuente de hechos):\n${briefText}\n\nIDs seleccionados: ${techniqueIds.join(", ")}. Marca motivaciones y objeciones como hipótesis. Claims respaldados deben señalar el dato exacto del brief. El campo prompt debe ser un prompt editable para construir la landing. Incluye atributos data-xpage-section y data-xpage-slot en ese prompt.`;
-    const { response } = await client.sessions.create({ message: prompt, outputSchema: designPlanSchema });
+    const { response } = await client.sessions.create({
+      message: `XPage model selection: ${input.modelChoice}\n\n${prompt}`,
+      outputSchema: designPlanSchema,
+    });
     const result = await response.result();
     const plan = designPlanSchema.safeParse(result.data);
     if (plan.success && validateTechniqueCoverage(plan.data, techniqueIds)) {
@@ -78,7 +81,7 @@ export async function POST(request: Request) {
         title: "Plan estructurado · Eve",
         techniqueIds,
         provider: "eve-local",
-        model: "eve-configured-model",
+        model: input.modelChoice,
         userPrompt: prompt,
         outputText: plan.data.prompt,
         output: plan.data,
@@ -94,6 +97,7 @@ export async function POST(request: Request) {
         traceId: input.traceId,
         designPlan: plan.data,
         generationMode: "eve-design-plan",
+        modelChoice: input.modelChoice,
       });
     }
     await recordEveTraceStep(input.traceId, {
@@ -121,6 +125,14 @@ export async function POST(request: Request) {
       durationMs: Date.now() - eveStartedAt,
     });
     console.warn("Eve structured planning is unavailable; using the legacy prompt path.", error instanceof Error ? error.message : "unknown error");
+  }
+
+  if (isEveModel(input.modelChoice)) {
+    await updateTraceStatus(input.traceId, "failed");
+    return NextResponse.json({
+      error: `Eve no pudo responder con ${input.modelChoice}. Revisa la sesión local con pnpm eve:dev y /login, o elige otro modelo.`,
+      code: "eve_model_unavailable",
+    }, { status: 503 });
   }
 
   if (!isTextProviderConfigured()) {
@@ -219,7 +231,9 @@ Entrega un único prompt autónomo, concreto y fácil de editar. Devuelve solo s
   }
 
   try {
-    const { output } = await generateTextWithFallback(run);
+    const { output } = input.modelChoice === "gemini"
+      ? await run("gemini")
+      : await run("openrouter");
 
     if (!output) {
       await recordProviderAttempts({
@@ -254,6 +268,7 @@ Entrega un único prompt autónomo, concreto y fácil de editar. Devuelve solo s
       traceId: input.traceId,
       designPlan: null,
       generationMode: "legacy-prompt",
+      modelChoice: input.modelChoice,
     });
   } catch (error) {
     await recordProviderAttempts({
