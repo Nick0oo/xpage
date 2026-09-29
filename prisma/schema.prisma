@@ -13,6 +13,8 @@ model SavedLanding {
   briefJson        String
   techniqueIdsJson String
   prompt           String
+  creativeDirectionJson String?
+  modelChoice      String                @default("gpt-5.6-luna")
   html             String
   css              String
   js               String

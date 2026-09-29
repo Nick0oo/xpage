@@ -31,4 +31,5 @@ export type ActiveLanding = {
   modelChoice: ModelChoice;
   designPlan: DesignPlan | null;
   mediaAssets: MediaAssetRecord[];
+  creativeDirection?: CreativeDirection | null;
 };

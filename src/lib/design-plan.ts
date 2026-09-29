@@ -1,6 +1,7 @@
 import { z } from "zod";
-import { techniqueIdSchema } from "@/lib/schemas";
 import { TECHNIQUE_IDS } from "@/lib/techniques";
+
+const techniqueIdSchema = z.enum(TECHNIQUE_IDS);
 
 export const mediaSlotSchema = z.object({
   id: z.string().regex(/^[a-z0-9-]+$/),

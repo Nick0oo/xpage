@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Download, ExternalLink } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Pencil } from "lucide-react";
 import { useParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { LandingPreview } from "@/components/preview/landing-preview";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { getLanding } from "@/lib/landing-storage";
+import { getLanding, recordHtmlExport } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName, openPreviewDocument } from "@/lib/preview-document";
 import type { SavedLanding } from "@/lib/schemas";
 
@@ -68,6 +68,7 @@ export default function SavedLandingPage() {
       }
       return;
     }
+    await recordHtmlExport(landing.traceId, landing.id, makeDownloadName(landing.title));
     const { title, html, css, js } = landing;
     const blob = new Blob(
       [buildPreviewDocument({ title, html, css, js })],
@@ -114,9 +115,12 @@ export default function SavedLandingPage() {
               </Link>
               <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Página guardada</p>
               <h1 className="mt-1 font-display text-3xl leading-tight sm:text-4xl">{landing.title}</h1>
-              <p className="mt-2 text-sm text-muted-foreground">{landing.brief.topic} · Guardada el {new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(new Date(landing.createdAt))}</p>
+              <p className="mt-2 text-sm text-muted-foreground">{landing.brief.topic} · Guardada el {new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(new Date(landing.createdAt))} · Versión {landing.sectionRevision ?? 0}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
+              <Link href={`/?landingId=${encodeURIComponent(landing.id)}`} className={buttonVariants({ variant: "outline" })}>
+                <Pencil size={15} aria-hidden="true" /> Continuar en Studio
+              </Link>
               <Button type="button" variant="outline" onClick={openFullPage}>
                 <ExternalLink size={15} aria-hidden="true" /> Abrir página completa
               </Button>
@@ -150,6 +154,19 @@ export default function SavedLandingPage() {
                   </p>
                 )}
               </section>
+              {landing.creativeDirection ? (
+                <section aria-labelledby="saved-direction-heading" className="rounded-xl border border-primary/20 bg-card p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.15em] text-primary">Dirección elegida</p>
+                  <h2 id="saved-direction-heading" className="mt-1 font-display text-xl">{landing.creativeDirection.title}</h2>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{landing.creativeDirection.concept}</p>
+                  <dl className="mt-3 grid gap-2 text-xs leading-5 sm:grid-cols-2">
+                    <div><dt className="font-semibold">Narrativa</dt><dd className="text-muted-foreground">{landing.creativeDirection.narrative}</dd></div>
+                    <div><dt className="font-semibold">Paleta y tipografía</dt><dd className="text-muted-foreground">{landing.creativeDirection.palette} · {landing.creativeDirection.typography}</dd></div>
+                    <div><dt className="font-semibold">Motivo visual</dt><dd className="text-muted-foreground">{landing.creativeDirection.motif}</dd></div>
+                    <div><dt className="font-semibold">Primer pantallazo</dt><dd className="text-muted-foreground">{landing.creativeDirection.firstScreen}</dd></div>
+                  </dl>
+                </section>
+              ) : null}
               {landing.mediaAssets?.length ? (
                 <section aria-labelledby="saved-media-heading" className="space-y-3 rounded-xl border border-border bg-card p-4">
                   <div>

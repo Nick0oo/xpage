@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TECHNIQUE_IDS } from "@/lib/techniques";
 import { MODEL_CHOICES, DEFAULT_MODEL_CHOICE } from "@/lib/model-choice";
+import { creativeDirectionSchema } from "@/lib/creative-directions";
 
 export const techniqueIdSchema = z.enum(TECHNIQUE_IDS);
 
@@ -99,6 +100,9 @@ export const savedLandingSchema = z.object({
   brief: briefSchema,
   techniqueIds: z.array(techniqueIdSchema).min(1).max(TECHNIQUE_IDS.length),
   prompt: z.string().min(1).max(12_000),
+  creativeDirection: creativeDirectionSchema.nullable().optional(),
+  sectionRevision: z.number().int().nonnegative().optional(),
+  modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
   html: landingCodeSchema.shape.html,
   css: landingCodeSchema.shape.css,
   js: landingCodeSchema.shape.js,
