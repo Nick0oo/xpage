@@ -75,6 +75,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...output, traceId: generationTraceId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Eve no pudo construir la landing.";
+    if (attempts.length > 0 && attempts.at(-1)?.status === "completed") {
+      attempts.push({ provider: "eve-local", model: modelChoice, status: "failed", durationMs: Math.max(0, Date.now() - startedAt - attempts.reduce((sum, attempt) => sum + attempt.durationMs, 0)), errorMessage: message.slice(0, 500) });
+    }
     await recordProviderAttempts({
       traceId: generationTraceId,
       phase: "landing-generation",
