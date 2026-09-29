@@ -91,6 +91,36 @@ export function PromptResults({
                   className="max-h-[340px] resize-y bg-background font-mono text-xs leading-6"
                 />
 
+                {result.status === "ready" ? (
+                  <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-3">
+                    <p className="text-xs font-semibold">
+                      {result.generationMode === "eve-design-plan" ? "Plan estructurado por Eve" : "Prompt de respaldo · plan estructurado no disponible"}
+                    </p>
+                    {result.designPlan ? (
+                      <>
+                        <p className="text-sm">{result.designPlan.concept}</p>
+                        <ol className="grid gap-2 sm:grid-cols-2">
+                          {result.designPlan.sections.map((section) => (
+                            <li key={section.id} className="rounded-md border border-border bg-background p-2.5">
+                              <p className="text-xs font-semibold">{section.role} · {section.id}</p>
+                              <p className="mt-1 text-xs text-muted-foreground">{section.purpose}</p>
+                            </li>
+                          ))}
+                        </ol>
+                        <ul className="flex flex-wrap gap-1.5">
+                          {result.designPlan.contributions.map((item) => (
+                            <li key={item.techniqueId} className="rounded-full bg-background px-2 py-1 text-[11px]">
+                              {techniques.find(({ id }) => id === item.techniqueId)?.name}: {item.status}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">El texto editable se generó con el proveedor alternativo. No hay un DesignPlan validado para este resultado.</p>
+                    )}
+                  </div>
+                ) : null}
+
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground">Construir esta landing realiza hasta 3 llamadas adicionales.</p>

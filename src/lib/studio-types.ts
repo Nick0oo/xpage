@@ -1,5 +1,6 @@
 import type { TechniqueId } from "@/lib/techniques";
 import type { Brief, LandingCode } from "@/lib/schemas";
+import type { DesignPlan } from "@/lib/design-plan";
 
 export type PromptResult = {
   id: string;
@@ -10,6 +11,8 @@ export type PromptResult = {
   prompt: string;
   status: "loading" | "ready" | "error";
   error?: string;
+  designPlan?: DesignPlan | null;
+  generationMode?: "eve-design-plan" | "legacy-prompt";
 };
 
 export type ActiveLanding = {

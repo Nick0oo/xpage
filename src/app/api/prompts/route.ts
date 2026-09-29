@@ -13,8 +13,11 @@ import {
 import { getProviderFailure } from "@/lib/ai/errors";
 import { getTechnique } from "@/lib/techniques";
 import { generatedPromptSchema, promptRequestSchema } from "@/lib/schemas";
+import { Client } from "eve/client";
+import { designPlanSchema, validateTechniqueCoverage } from "@/lib/design-plan";
 import {
   recordProviderAttempts,
+  recordTraceStep,
   setGenerationTraceStatus,
   type ProviderAttemptTrace,
 } from "@/lib/generation-traces";
@@ -42,16 +45,6 @@ export async function POST(request: Request) {
     );
   }
 
-  if (!isTextProviderConfigured()) {
-    return NextResponse.json(
-      {
-        error: "Configura GOOGLE_GENERATIVE_AI_API_KEY o OPENROUTER_API_KEY en .env.local y reinicia XPage.",
-        code: "missing_api_key",
-      },
-      { status: 503 },
-    );
-  }
-
   const input = parsed.data;
   const techniqueIds =
     input.mode === "technique" ? [input.techniqueId] : input.techniqueIds;
@@ -63,6 +56,79 @@ export async function POST(request: Request) {
     `Tono o dirección visual: ${input.brief.tone}`,
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
   ].join("\n");
+
+  // Eve is the primary structured planner. Failure is recoverable: existing
+  // prompt generation remains available while local ChatGPT authentication is pending.
+  const eveOrigin = process.env.EVE_ORIGIN?.trim() || "http://127.0.0.1:3000";
+  const eveStartedAt = Date.now();
+  const evePhase = input.mode === "combine" ? "combined-design-plan" : "technique-design-plan";
+  try {
+    const client = new Client({ host: `${eveOrigin.replace(/\/$/, "")}/eve/v1` });
+    const task = input.mode === "combine"
+      ? `Combina estas técnicas: ${selectedTechniques.map(({ id, name }) => `${id} (${name})`).join(", ")}. Carga y aplica su skill versionada y la skill combine.`
+      : `Aplica la técnica ${selectedTechniques[0].id} (${selectedTechniques[0].name}). Carga y aplica su skill versionada.`;
+    const prompt = `${task}\n\nEntrega un DesignPlan completo para XPage con los campos del esquema. Cada contribución debe resumir decisiones observables, nunca razonamiento privado.\n\nBrief (fuente de hechos):\n${briefText}\n\nIDs seleccionados: ${techniqueIds.join(", ")}. Marca motivaciones y objeciones como hipótesis. Claims respaldados deben señalar el dato exacto del brief. El campo prompt debe ser un prompt editable para construir la landing. Incluye atributos data-xpage-section y data-xpage-slot en ese prompt.`;
+    const { response } = await client.sessions.create({ message: prompt, outputSchema: designPlanSchema });
+    const result = await response.result();
+    const plan = designPlanSchema.safeParse(result.data);
+    if (plan.success && validateTechniqueCoverage(plan.data, techniqueIds)) {
+      await recordEveTraceStep(input.traceId, {
+        phase: evePhase,
+        title: "Plan estructurado · Eve",
+        techniqueIds,
+        provider: "eve-local",
+        model: "eve-configured-model",
+        userPrompt: prompt,
+        outputText: plan.data.prompt,
+        output: plan.data,
+        durationMs: Date.now() - eveStartedAt,
+      });
+      await updateTraceStatus(input.traceId, "prompt-ready");
+      return NextResponse.json({
+        prompt: plan.data.prompt,
+        techniqueIds,
+        traceId: input.traceId,
+        designPlan: plan.data,
+        generationMode: "eve-design-plan",
+      });
+    }
+    await recordEveTraceStep(input.traceId, {
+      phase: evePhase,
+      title: "Plan estructurado · Eve",
+      techniqueIds,
+      provider: "eve-local",
+      model: "eve-configured-model",
+      userPrompt: briefText,
+      status: "failed",
+      errorMessage: "La salida no cumple el contrato DesignPlan o no cubre las técnicas seleccionadas.",
+      durationMs: Date.now() - eveStartedAt,
+    });
+    console.warn("Eve returned an incomplete XPage design plan; using the legacy prompt path.");
+  } catch (error) {
+    await recordEveTraceStep(input.traceId, {
+      phase: evePhase,
+      title: "Plan estructurado · Eve",
+      techniqueIds,
+      provider: "eve-local",
+      model: "eve-configured-model",
+      userPrompt: briefText,
+      status: "failed",
+      errorMessage: error instanceof Error ? error.message.slice(0, 500) : "unknown error",
+      durationMs: Date.now() - eveStartedAt,
+    });
+    console.warn("Eve structured planning is unavailable; using the legacy prompt path.", error instanceof Error ? error.message : "unknown error");
+  }
+
+  if (!isTextProviderConfigured()) {
+    await updateTraceStatus(input.traceId, "failed");
+    return NextResponse.json(
+      {
+        error: "Eve no entregó un plan válido y no hay un proveedor alternativo configurado. Completa el acceso local a ChatGPT o configura Gemini/OpenRouter.",
+        code: "structured_planner_unavailable",
+      },
+      { status: 503 },
+    );
+  }
 
   const techniqueText = selectedTechniques
     .map((technique) => `### ${technique.name}\n${technique.instruction}`)
@@ -178,7 +244,13 @@ Entrega un único prompt autónomo, concreto y fácil de editar. Devuelve solo s
       attempts,
     });
     await updateTraceStatus(input.traceId, "prompt-ready");
-    return NextResponse.json({ prompt: output.prompt, techniqueIds, traceId: input.traceId });
+    return NextResponse.json({
+      prompt: output.prompt,
+      techniqueIds,
+      traceId: input.traceId,
+      designPlan: null,
+      generationMode: "legacy-prompt",
+    });
   } catch (error) {
     await recordProviderAttempts({
       traceId: input.traceId,
@@ -201,5 +273,16 @@ async function updateTraceStatus(traceId: string | undefined, status: string) {
     await setGenerationTraceStatus(traceId, status);
   } catch {
     console.error("XPage prompt trace status update failed", { traceId, status });
+  }
+}
+
+async function recordEveTraceStep(
+  traceId: string | undefined,
+  step: Parameters<typeof recordTraceStep>[1],
+) {
+  try {
+    await recordTraceStep(traceId, step);
+  } catch {
+    console.error("XPage Eve trace persistence failed", { traceId, phase: step.phase });
   }
 }

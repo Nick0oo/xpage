@@ -31,6 +31,8 @@ type ApiResponse = {
   mediaType?: unknown;
   traceId?: unknown;
   error?: unknown;
+  designPlan?: unknown;
+  generationMode?: unknown;
 };
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
@@ -165,6 +167,8 @@ export default function Home() {
         techniqueIds: result.techniqueIds,
         mode: result.combined ? "combined" : "individual",
         prompt: result.prompt,
+        generationMode: result.generationMode ?? "legacy-prompt",
+        designPlan: result.designPlan ?? null,
         sourcePromptTraceId: result.traceId,
       },
       sourceTraceId: result.traceId,
@@ -184,14 +188,14 @@ export default function Home() {
     );
 
     try {
-      const payload = await postJson<{ prompt: string }>("/api/prompts", { ...request, traceId });
+      const payload = await postJson<Pick<PromptResult, "prompt" | "designPlan" | "generationMode">>("/api/prompts", { ...request, traceId });
       if (typeof payload.prompt !== "string" || !payload.prompt.trim()) {
         throw new Error("La IA devolvió una respuesta vacía. Inténtalo de nuevo.");
       }
       setPromptResults((current) =>
         current.map((result) =>
           result.id === resultId
-            ? { ...result, prompt: payload.prompt, status: "ready", error: undefined }
+            ? { ...result, prompt: payload.prompt, designPlan: payload.designPlan ?? null, generationMode: payload.generationMode ?? "legacy-prompt", status: "ready", error: undefined }
             : result,
         ),
       );
