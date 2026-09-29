@@ -127,6 +127,7 @@ export function PromptResults({
                         {result.designPlan.creatorCritic ? (
                           <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
                             <p className="text-xs font-semibold">Revisión creador · crítico</p>
+                            <p className="mt-1 text-xs leading-5"><span className="font-medium">Propuesta:</span> {result.designPlan.creatorCritic.proposal}</p>
                             <p className="mt-1 text-xs leading-5">{result.designPlan.creatorCritic.revision}</p>
                             {result.designPlan.creatorCritic.findings.length > 0 ? <p className="mt-1 text-xs leading-5 text-muted-foreground">Hallazgos resueltos: {result.designPlan.creatorCritic.findings.join("; ")}</p> : null}
                           </div>

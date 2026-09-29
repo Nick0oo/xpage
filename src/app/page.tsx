@@ -625,7 +625,7 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Etapa 02 · Método</p>
                 <h2 id="technique-heading" className="mt-1 font-display text-2xl sm:text-3xl">Elige cómo diseñar tu página</h2>
                 <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Selecciona una o varias técnicas. Abre «Qué hará en tu prompt» para ver cómo influye cada una.
+                  Selecciona una o varias técnicas. Abre cada método para ver su propósito, entradas y aporte.
                 </p>
               </div>
               <span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">

@@ -46,11 +46,13 @@ export function TechniqueSelector({ selected, disabled, onToggle }: TechniqueSel
               </label>
               <details className="group/details mx-3.5 border-t border-border/70 pb-2.5 pt-2 sm:mx-4">
                 <summary className="cursor-pointer text-xs font-medium text-primary marker:text-primary focus-visible:outline-none focus-visible:underline">
-                  Qué hará en tu prompt
+                  Propósito, entrada y aporte
                 </summary>
-                <p className="mt-2 pl-0.5 text-xs leading-5 text-muted-foreground">
-                  {technique.instruction}
-                </p>
+                <dl className="mt-2 space-y-2 pl-0.5 text-xs leading-5">
+                  <div><dt className="font-medium">Propósito</dt><dd className="text-muted-foreground">{technique.purpose}</dd></div>
+                  <div><dt className="font-medium">Parte de</dt><dd className="text-muted-foreground">{technique.inputs}</dd></div>
+                  <div><dt className="font-medium">Aporta</dt><dd className="text-muted-foreground">{technique.artifact}</dd></div>
+                </dl>
               </details>
             </div>
           );
