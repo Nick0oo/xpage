@@ -21,6 +21,13 @@ Antes de generar código, ofrecer dos o tres direcciones diferenciadas. Cada una
 
 ## Secuencia del worker
 
+### Estado de implementación (2026-09-28)
+
+- Implementado: brief opcional con marca, paleta, referencias textuales/URLs, elementos a evitar, objetivo y controles de variedad, movimiento y densidad. Los registros antiguos reciben valores predeterminados al validarse.
+- Implementado: una solicitud Eve produce dos o tres direcciones estructuradas con su propio `DesignPlan`; la interfaz permite compararlas y elegir una antes de construir. El prompt seleccionado se puede editar.
+- Implementado: la traza registra alternativas, elección y cambios posteriores al prompt. Las referencias son contexto escrito por el usuario; el sistema no descarga ni verifica las URLs.
+- Pendiente de evaluación: generación real repetida para briefs de distintos sectores y revisión de capturas de HTML renderizado. Por tanto, la aceptación visual y de diversidad no se considera demostrada todavía.
+
 1. Reunir ejemplos breves de referencias y resultados actuales para detectar repeticiones. Documentar cuatro o cinco patrones repetidos medibles: hero, retícula, paleta, secciones, copy y activos.
 2. Ampliar brief y schemas con campos opcionales, manteniendo compatibilidad con registros antiguos. Guardar referencias como datos de entrada de proyecto, no como hechos verificados.
 3. Implementar generación y elección de direcciones estructuradas. Incorporar restricciones y controles en el `DesignPlan`, no en un bloque de texto final pegado al prompt.
