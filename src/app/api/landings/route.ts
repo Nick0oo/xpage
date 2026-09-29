@@ -95,8 +95,8 @@ export async function POST(request: Request) {
     await setTraceStatus(generationTraceId, "failed");
     const missingContent = message.startsWith("La landing sigue omitiendo contenido obligatorio:");
     return NextResponse.json({
-      error: `Eve no pudo construir la landing con ${modelChoice}. Revisa el acceso al proveedor seleccionado e inténtalo otra vez.`,
-      ...(missingContent ? { error: message, code: "required_content_missing" } : { code: "eve_model_unavailable" }),
+      error: missingContent ? message : `Eve no pudo construir la landing con ${modelChoice}. Revisa el acceso al proveedor seleccionado e inténtalo otra vez.`,
+      code: missingContent ? "required_content_missing" : "eve_model_unavailable",
     }, { status: missingContent ? 422 : 503 });
   }
 }
