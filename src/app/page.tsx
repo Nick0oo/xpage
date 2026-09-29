@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, Download, GitBranch, ImagePlus, LoaderCircle, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
@@ -8,6 +8,7 @@ import { BriefForm } from "@/components/studio/brief-form";
 import { PromptResults } from "@/components/studio/prompt-results";
 import { TechniqueSelector } from "@/components/studio/technique-selector";
 import { EveModelSelector } from "@/components/studio/eve-model-selector";
+import { CreativeDirectionPicker } from "@/components/studio/creative-direction-picker";
 import { Button } from "@/components/ui/button";
 import { CoverImageGenerator } from "@/components/preview/cover-image-generator";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
@@ -16,6 +17,7 @@ import type { ActiveLanding, PromptResult } from "@/lib/studio-types";
 import { saveLanding } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName } from "@/lib/preview-document";
 import { DEFAULT_MODEL_CHOICE, type ModelChoice } from "@/lib/model-choice";
+import { creativeDirectionsResponseSchema, type CreativeDirection } from "@/lib/creative-directions";
 
 const emptyBrief: Brief = {
   topic: "",
@@ -23,6 +25,14 @@ const emptyBrief: Brief = {
   audience: "",
   tone: "",
   cta: "",
+  brand: "",
+  palette: "",
+  references: "",
+  avoid: "",
+  objective: "",
+  variety: "equilibrada",
+  movement: "moderado",
+  density: "equilibrada",
 };
 
 type CreationStep = 1 | 2 | 3;
@@ -77,6 +87,10 @@ export default function Home() {
   const [imageLoading, setImageLoading] = useState(false);
   const [imageError, setImageError] = useState("");
   const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
+  const [creativeDirections, setCreativeDirections] = useState<CreativeDirection[]>([]);
+  const [directionTraceId, setDirectionTraceId] = useState<string | null>(null);
+  const [directionModelChoice, setDirectionModelChoice] = useState<ModelChoice | null>(null);
+  const pendingPromptTraces = useRef(new Map<string, { prompt: string; promise: Promise<void> }>());
 
   const busy = batchGenerating || activeResultId !== null;
 
@@ -89,6 +103,9 @@ export default function Home() {
     const changed = brief[field] !== value;
     setBrief((current) => ({ ...current, [field]: value }));
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    setCreativeDirections([]);
+    setDirectionTraceId(null);
+    setDirectionModelChoice(null);
     if (changed && promptResults.length > 0) {
       setPromptResults([]);
       setStep(1);
@@ -102,6 +119,9 @@ export default function Home() {
     setSelectedIds((current) =>
       current.includes(id) ? current.filter((selected) => selected !== id) : [...current, id],
     );
+    setCreativeDirections([]);
+    setDirectionTraceId(null);
+    setDirectionModelChoice(null);
     if (promptResults.length > 0) {
       setPromptResults([]);
       setStep(2);
@@ -148,7 +168,7 @@ export default function Home() {
   async function createTrace(
     parsedBrief: Brief,
     techniqueIds: TechniqueId[],
-    mode: "individual" | "combined",
+    mode: "individual" | "combined" | "directions",
   ) {
     const payload = await postJson<{ id: string }>("/api/traces", {
       category: "landing-page",
@@ -172,6 +192,11 @@ export default function Home() {
         prompt: result.prompt,
         generationMode: result.generationMode ?? "legacy-prompt",
         designPlan: result.designPlan ?? null,
+        creativeDirection: result.creativeDirection ? {
+          id: result.creativeDirection.id,
+          title: result.creativeDirection.title,
+          rationale: result.creativeDirection.rationale,
+        } : null,
         sourcePromptTraceId: result.traceId,
         modelChoice: result.modelChoice,
       },
@@ -220,83 +245,106 @@ export default function Home() {
     }
   }
 
-  async function generateIndividualPrompts() {
+  async function generateCreativeDirections() {
     const parsedBrief = validatedBrief();
     if (!parsedBrief) return;
     if (selectedIds.length === 0) {
-      setFormError("Selecciona al menos una técnica para generar prompts.");
+      setFormError("Selecciona al menos un método para explorar direcciones.");
       return;
     }
 
-    setStep(3);
-    const ids = [...selectedIds];
-    setPromptResults([]);
     setBatchGenerating(true);
     setFormError("");
-
+    const techniqueIds = [...selectedIds];
     try {
-      for (const techniqueId of ids) {
-        const traceId = await createTrace(parsedBrief, [techniqueId], "individual");
-        const resultId = crypto.randomUUID();
-        const result: PromptResult = {
-          id: resultId,
-          brief: parsedBrief,
-          techniqueIds: [techniqueId],
-          combined: false,
-          traceId,
-          prompt: "",
-          status: "loading",
-          modelChoice,
-        };
-        setPromptResults((current) => [...current, result]);
-        await generatePrompt(resultId, traceId, {
-          mode: "technique",
-          brief: parsedBrief,
-          techniqueId,
-          modelChoice,
-        });
-      }
+      setCreativeDirections([]);
+      setPromptResults([]);
+      setDirectionModelChoice(modelChoice);
+      const traceId = await createTrace(parsedBrief, techniqueIds, "directions");
+      const payload = await postJson<unknown>("/api/prompts", {
+        mode: "directions",
+        brief: parsedBrief,
+        techniqueIds,
+        modelChoice,
+        traceId,
+      });
+      const parsed = creativeDirectionsResponseSchema.safeParse(payload);
+      if (!parsed.success) throw new Error("Eve no devolvió dos direcciones completas para comparar.");
+      setCreativeDirections(parsed.data.directions);
+      setDirectionTraceId(traceId);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "No se pudo registrar el proceso.");
+      setFormError(error instanceof Error ? error.message : "No se pudieron generar las direcciones.");
     } finally {
       setBatchGenerating(false);
     }
   }
 
-  async function generateCombinedPrompt() {
-    const parsedBrief = validatedBrief();
-    if (!parsedBrief) return;
-    if (selectedIds.length < 2) {
-      setFormError("Selecciona dos o más técnicas para combinarlas.");
-      return;
+  function changeModelChoice(value: ModelChoice) {
+    setModelChoice(value);
+    if (creativeDirections.length > 0) {
+      setCreativeDirections([]);
+      setDirectionTraceId(null);
+      setDirectionModelChoice(null);
+      setFormError("Cambiaste el modelo. Genera direcciones nuevas para comparar resultados del mismo modelo.");
     }
+  }
 
-    setStep(3);
-    setBatchGenerating(true);
+  async function chooseCreativeDirection(direction: CreativeDirection) {
+    if (!directionTraceId) return;
     setFormError("");
-    const resultId = crypto.randomUUID();
-    const techniqueIds = [...selectedIds];
+    setBatchGenerating(true);
+    const directionMetadata = {
+      id: direction.id,
+      title: direction.title,
+      rationale: direction.rationale,
+      structuralDifference: direction.structuralDifference,
+    };
     try {
-      const traceId = await createTrace(parsedBrief, techniqueIds, "combined");
-      setPromptResults((current) => [
-        ...current,
-        {
-          id: resultId,
-          brief: parsedBrief,
-          techniqueIds,
-          combined: true,
-          traceId,
-          prompt: "",
-          status: "loading",
-          modelChoice,
-        },
-      ]);
-      await generatePrompt(resultId, traceId, { mode: "combine", brief: parsedBrief, techniqueIds, modelChoice });
+      await postJson(`/api/traces/${directionTraceId}/events`, {
+        type: "creative-direction-selection",
+        direction: directionMetadata,
+      });
+      const techniqueIds = [...selectedIds];
+      setPromptResults([{
+        id: crypto.randomUUID(),
+        brief,
+        techniqueIds,
+        combined: techniqueIds.length > 1,
+        traceId: directionTraceId,
+        prompt: direction.designPlan.prompt,
+        designPlan: direction.designPlan,
+        creativeDirection: direction,
+        generationMode: "eve-design-plan",
+        status: "ready",
+        modelChoice: directionModelChoice ?? modelChoice,
+      }]);
+      setStep(3);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "No se pudo registrar la combinación.");
+      setFormError(error instanceof Error ? error.message : "No se pudo registrar la dirección elegida.");
     } finally {
       setBatchGenerating(false);
     }
+  }
+
+  async function recordPromptEdit(resultId: string, prompt: string) {
+    const result = promptResults.find(({ id }) => id === resultId);
+    if (!result?.creativeDirection || prompt === result.creativeDirection.designPlan.prompt || prompt === result.lastTracedPrompt) return;
+    const pending = pendingPromptTraces.current.get(resultId);
+    if (pending?.prompt === prompt) return pending.promise;
+    const promise = postJson(`/api/traces/${result.traceId}/events`, {
+        type: "prompt-edit",
+        directionId: result.creativeDirection.id,
+        prompt,
+      }).then(() => {
+      setPromptResults((current) => current.map((item) => item.id === resultId ? { ...item, lastTracedPrompt: prompt } : item));
+    }).catch((error: unknown) => {
+      setFormError(error instanceof Error ? error.message : "No se pudo guardar la edición en la traza.");
+      throw error;
+    }).finally(() => {
+      if (pendingPromptTraces.current.get(resultId)?.promise === promise) pendingPromptTraces.current.delete(resultId);
+    });
+    pendingPromptTraces.current.set(resultId, { prompt, promise });
+    return promise;
   }
 
   function retryPrompt(resultId: string) {
@@ -316,6 +364,7 @@ export default function Home() {
     setActiveResultId(resultId);
     setFormError("");
     try {
+      await recordPromptEdit(resultId, result.prompt);
       const traceId = await createLandingTrace(result);
       const payload = await postJson<unknown>("/api/landings", {
         prompt: result.prompt,
@@ -550,7 +599,7 @@ export default function Home() {
           </p>
         </section>
 
-        <EveModelSelector value={modelChoice} onChange={setModelChoice} />
+        <EveModelSelector value={modelChoice} onChange={changeModelChoice} />
 
         <nav aria-label="Progreso de creación" className="rounded-2xl border border-border bg-card p-2 sm:p-3">
           <ol className="grid grid-cols-3 gap-1.5 sm:gap-2">
@@ -634,41 +683,20 @@ export default function Home() {
             </div>
 
             <TechniqueSelector selected={selectedIds} disabled={busy} onToggle={toggleTechnique} />
-            <div className="grid gap-3 sm:grid-cols-2">
-              <section className="flex flex-col rounded-2xl border border-border bg-card p-4 sm:p-5">
-                <div className="flex items-center gap-2 text-primary">
-                  <Sparkles size={16} aria-hidden="true" />
-                  <h3 className="text-sm font-semibold text-foreground">Probar técnicas por separado</h3>
-                </div>
-                <p className="mt-2 min-h-10 text-sm leading-5 text-muted-foreground">
-                  Eve crea un DesignPlan y un prompt editable para cada técnica seleccionada, uno después de otro.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {selectedCount > 0 ? `${selectedCount} resultado${selectedCount === 1 ? "" : "s"} · ${modelChoice}` : "Selecciona al menos una técnica"}
-                </p>
-                <Button type="button" className="mt-4 w-full" onClick={() => void generateIndividualPrompts()} disabled={busy || selectedCount === 0}>
-                  {batchGenerating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
-                  {batchGenerating ? "Preparando prompts…" : "Generar por separado"}
-                </Button>
-              </section>
+            <section className="grid gap-4 rounded-2xl border border-primary/20 bg-primary/[0.025] p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Una llamada a Eve</p>
+                <h3 className="mt-1 font-display text-xl">Explora antes de construir</h3>
+                <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">Eve aplica los métodos elegidos y devuelve dos o tres rutas con estructura, hero, ritmo, medios y prompt propios. Comparas y eliges una antes de generar HTML.</p>
+                <p className="mt-2 text-xs text-muted-foreground">{selectedCount > 0 ? `${selectedCount} método${selectedCount === 1 ? "" : "s"} · ${modelChoice}` : "Selecciona al menos un método"}</p>
+              </div>
+              <Button type="button" onClick={() => void generateCreativeDirections()} disabled={busy || selectedCount === 0} className="w-full sm:w-auto">
+                {batchGenerating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
+                {batchGenerating ? "Diseñando rutas…" : "Generar direcciones"}
+              </Button>
+            </section>
 
-              <section className="flex flex-col rounded-2xl border border-border bg-card p-4 sm:p-5">
-                <div className="flex items-center gap-2 text-primary">
-                  <GitBranch size={16} aria-hidden="true" />
-                  <h3 className="text-sm font-semibold text-foreground">Combinar técnicas</h3>
-                </div>
-                <p className="mt-2 min-h-10 text-sm leading-5 text-muted-foreground">
-                  Un plan de Eve integra las técnicas, resuelve tensiones y genera un solo prompt para la landing.
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {selectedCount >= 2 ? `${selectedCount} técnicas · ${modelChoice}` : "Selecciona al menos dos técnicas"}
-                </p>
-                <Button type="button" variant="outline" className="mt-4 w-full" onClick={() => void generateCombinedPrompt()} disabled={busy || selectedCount < 2}>
-                  {batchGenerating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <GitBranch aria-hidden="true" />}
-                  {selectedCount < 2 ? "Selecciona 2 o más técnicas" : "Generar prompt combinado"}
-                </Button>
-              </section>
-            </div>
+            <CreativeDirectionPicker directions={creativeDirections} onChoose={(direction) => void chooseCreativeDirection(direction)} disabled={busy} />
 
             {formError ? <p role="alert" className="rounded-lg border border-destructive/25 bg-destructive/5 px-4 py-3 text-sm text-destructive">{formError}</p> : null}
 
@@ -688,7 +716,7 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Etapa 03 · Revisión</p>
                 <h2 id="prompt-results-heading" className="mt-1 font-display text-2xl sm:text-3xl">Ajusta tus prompts antes de construir</h2>
                 <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  Cada resultado tiene su propio registro. Edita el texto, compara alternativas y construye la versión que prefieras.
+                  Revisa el prompt de la dirección elegida, edítalo y construye cuando esté listo.
                 </p>
               </div>
               <Button type="button" variant="ghost" onClick={() => goToStep(2)} disabled={busy}>
@@ -719,6 +747,7 @@ export default function Home() {
                   current.map((result) => (result.id === id ? { ...result, prompt: value } : result)),
                 )
               }
+              onPromptCommit={(id, value) => void recordPromptEdit(id, value).catch(() => undefined)}
               onRun={(id) => void buildLanding(id)}
               onRetry={retryPrompt}
             />
