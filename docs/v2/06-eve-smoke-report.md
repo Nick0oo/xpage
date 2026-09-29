@@ -2,16 +2,17 @@
 
 ## Configuración reproducible
 
-- Runtime instalado: Eve `0.68.0`; Node local `v24.18.0` (Eve requiere Node `>=24`).
-- Modelo declarado por el agente: `chatgpt()` de `eve/models/openai` (modelo predeterminado documentado por Eve: `gpt-6-luna-fast`).
-- Arranque de Next y su ruta local de Eve: desde `xpage/`, ejecutar `pnpm dev`.
-- El servidor Eve que `withEve` crea para Next corre sin TUI (`eve dev --no-ui --port 0`). Para iniciar sesión, abrir otra terminal en `xpage/` y ejecutar `pnpm exec eve dev`; en su TUI usar `/login` → `ChatGPT Subscription` y completar la autorización de ChatGPT. Reiniciar `pnpm dev` para que la ruta de Next recoja la conexión local guardada.
-- En XPage, abrir `http://localhost:3000/eve-prueba` y pulsar **Enviar prueba estructurada**. La solicitud pide un JSON `estado: "ok"` y `resumen`, y fuerza al agente a llamar `confirmar_prueba_local`.
+- Runtime comprobado: Eve `0.68.0`; Node `v24.18.0` (Eve requiere Node `>=24`).
+- El agente declara GPT-5.6 Luna normal como modelo base y admite selección dinámica de GPT-5.6 Luna, GPT-6 Luna, Gemini y Qwen. No se usa ningún modelo fast.
+- `pnpm dev` arranca Next y el servidor local de Eve sin TUI. `pnpm eve:dev` abre Eve para iniciar sesión; usar `/login` y elegir `ChatGPT Subscription` cuando se necesite autorizar la cuenta.
+- El launcher local antepone solo para el proceso el directorio que contiene `codex.exe` nativo; no requiere cambiar el PATH global ni copiar credenciales a `.env`.
+- La página `/eve-prueba` envía una petición estructurada que requiere `estado: "ok"` y un `resumen` no vacío.
 
-## Evidencia y límites observados
+## Evidencia y límites
 
-La integración de código está lista y la compilación de Next incluye `/eve-prueba`. No se completó el login interactivo ni se observó una respuesta real de ChatGPT Subscription en esta sesión; por tanto, el recorrido XPage → Eve → ChatGPT y su latencia quedan **pendientes de comprobar manualmente**. No se configuró una clave de API de texto ni se copió ningún secreto.
+- **Confirmado:** una llamada real desde `/eve-prueba` devolvió JSON válido con `estado: "ok"` usando ChatGPT Subscription y GPT-5.6 Luna.
+- **Confirmado después:** GPT-6 Luna respondió a una prueba de texto. Una petición `DesignPlan` desde `/api/prompts` no terminó dentro de 30 segundos; no se considera validado ese flujo completo.
+- La generación de HTML, imagen y propuestas de edición no queda certificada por estas pruebas. La imagen usa OpenRouter y requiere una clave propia; no forma parte de la suscripción ChatGPT.
+- No se configuró una clave de API de texto ni se copiaron tokens. El login local lo administra Eve/Codex.
 
-Según la documentación de Eve 0.68.0, `/login` almacena credenciales OAuth administradas por Eve en el almacén de secretos del sistema operativo y selecciona ChatGPT Subscription como conexión local; esos modelos no funcionan en despliegue. Esa descripción es documentación del proveedor, no una verificación de almacenamiento en este equipo. Eve requiere Node `>=24`.
-
-Comprobaciones ejecutadas desde `xpage/`: `pnpm lint`, `pnpm typecheck` y `pnpm build` pasaron. ESLint ignora `.eve/` porque contiene artefactos generados del runtime local. No se registró una latencia, continuidad tras reinicio autenticado ni el caso de sesión ausente/caducada con una solicitud real.
+La respuesta de `/eve-prueba` demuestra el recorrido local XPage → Eve → ChatGPT Subscription para esa salida estructurada. No prueba latencia estable, continuidad tras reinicio autenticado ni comportamiento ante una sesión ausente o caducada.
