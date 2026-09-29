@@ -1,10 +1,41 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- CommonJS entrypoint launched directly by Node. */
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
 
 function findCodexDirectory() {
   const candidates = [];
-  if (process.env.CODEX_CLI_PATH) candidates.push(process.env.CODEX_CLI_PATH);
+  if (process.env.CODEX_CLI_PATH) {
+    const configuredPath = process.env.CODEX_CLI_PATH;
+    candidates.push(fs.existsSync(configuredPath) && fs.statSync(configuredPath).isDirectory()
+      ? path.join(configuredPath, "codex.exe")
+      : configuredPath);
+  }
+
+  // npm/nvm installs the CLI under the active Node installation. Eve's
+  // spawn('codex') cannot execute the .cmd shim, so add the native binary dir.
+  const nodeModules = path.join(path.dirname(process.execPath), "node_modules");
+  candidates.push(path.join(
+    nodeModules,
+    "@openai",
+    "codex",
+    "node_modules",
+    "@openai",
+    "codex-win32-x64",
+    "vendor",
+    "x86_64-pc-windows-msvc",
+    "bin",
+    "codex.exe",
+  ));
+  candidates.push(path.join(
+    nodeModules,
+    "@openai",
+    "codex-win32-x64",
+    "vendor",
+    "x86_64-pc-windows-msvc",
+    "bin",
+    "codex.exe",
+  ));
 
   const installRoot = process.env.LOCALAPPDATA
     ? path.join(process.env.LOCALAPPDATA, "OpenAI", "Codex", "bin")
