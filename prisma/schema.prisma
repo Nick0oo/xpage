@@ -13,6 +13,7 @@ model SavedLanding {
   briefJson        String
   techniqueIdsJson String
   prompt           String
+  creativeDirectionJson String?
   html             String
   css              String
   js               String

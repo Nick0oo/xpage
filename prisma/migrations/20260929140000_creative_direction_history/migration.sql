@@ -1,0 +1,1 @@
+ALTER TABLE "SavedLanding" ADD COLUMN "creativeDirectionJson" TEXT;

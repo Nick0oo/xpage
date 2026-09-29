@@ -394,6 +394,7 @@ export default function Home() {
         savedId: null,
         modelChoice: result.modelChoice,
         designPlan: result.designPlan ?? result.creativeDirection?.designPlan ?? null,
+        creativeDirection: result.creativeDirection ?? null,
         mediaAssets: [],
       });
       setSaveMessage("");
@@ -453,6 +454,7 @@ export default function Home() {
         brief: activeLanding.brief,
         techniqueIds: activeLanding.techniqueIds,
         prompt: activeLanding.prompt,
+        creativeDirection: activeLanding.creativeDirection ?? null,
         html: activeLanding.code.html,
         css: activeLanding.code.css,
         js: activeLanding.code.js,
