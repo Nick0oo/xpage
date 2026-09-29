@@ -27,7 +27,7 @@ export function CoverImageGenerator({
         <div className="min-w-0 flex-1">
           <h2 id="cover-image-heading" className="font-display text-xl">Visual de portada</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Recraft V4.1 Flash cuesta aprox. US$0.007 por imagen. Si se satura, XPage prueba Muse Image (US$0.01).
+            La imagen se genera con el modelo OpenRouter configurado en XPage; esta operación es opcional y puede tener costo.
           </p>
         </div>
       </div>
@@ -60,13 +60,13 @@ export function CoverImageGenerator({
           ) : (
             <Sparkles size={15} aria-hidden="true" />
           )}
-          {loading ? "Generando imagen…" : "Generar portada · hasta 2 llamadas"}
+          {loading ? "Generando imagen…" : "Generar portada"}
         </Button>
       )}
 
       {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
       <p className="text-[11px] leading-4 text-muted-foreground">
-        Los precios pueden cambiar. La imagen y su prompt quedan en la trazabilidad de esta landing; descárgala para usarla fuera de XPage.
+        La traza conserva el método y el modelo; el archivo de imagen no se guarda en la base de datos. Descárgalo para conservarlo.
       </p>
     </section>
   );

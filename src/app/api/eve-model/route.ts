@@ -33,5 +33,6 @@ export async function GET(request: Request) {
     geminiModel: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
     qwenConfigured: isOpenRouterConfigured(),
     qwenModel: process.env.OPENROUTER_MODEL?.trim() || DEFAULT_OPENROUTER_TEXT_MODEL,
+    imageConfigured: isOpenRouterConfigured(),
   });
 }
