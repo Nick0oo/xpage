@@ -2,7 +2,7 @@
 name: ambitious-prompts
 description: Traduce motivaciones y objeciones hipotéticas en un recorrido claro y específico.
 ---
-# Prompts ambiciosos · v1.1.0
+# Prompts ambiciosos · v1.2.0
 
 ## Propósito
 Dar intención narrativa a cada sección sin presentar intuiciones como investigación.
@@ -15,6 +15,8 @@ Dar intención narrativa a cada sección sin presentar intuiciones como investig
 5. Elige un CTA coherente con la oferta y evita urgencia o promesas que el brief no respalde.
 6. Convierte cada entregable solicitado en contenido visible y concreto. Si se pide una cantidad de ejercicios o ejemplos, redacta las piezas; no reemplaces la entrega por una promesa de que la página los contiene.
 7. Usa un recorrido que muestre el valor real de la oferta: incorpora la práctica, explicación o muestra pedida antes de cerrar con la acción.
+8. Cuando la oferta tenga suficiente material, desarrolla las partes con detalle: qué incluye, cómo se usa y muestras concretas. Evita que el recorrido termine en una lista superficial de beneficios.
+9. Si no existe destino externo para el CTA, usa un enlace interno que lleve al contenido o siguiente paso visible; no uses botones deshabilitados.
 
 ## Entrega y verificación
 Registra hipótesis en `audienceHypotheses`, propósito en cada sección y aplicación en `contributions`. Ninguna hipótesis puede aparecer como dato medido o claim respaldado.

@@ -2,7 +2,7 @@
 name: seed-strings
 description: Construye DesignDNA como fuente única de verdad visual y de marca.
 ---
-# Cadenas semilla · v1.1.0
+# Cadenas semilla · v1.2.0
 
 ## Propósito
 Establece invariantes de marca antes de decidir secciones, copy o medios.
