@@ -92,7 +92,9 @@ function validateSectionFragment(html: string, sectionId: string, originalSlotId
   const forbiddenTags = new Set(["script", "style", "iframe", "object", "embed", "base", "meta", "link"]);
   for (const element of descendants(fragment)) {
     if (forbiddenTags.has(element.tagName)) throw new Error("La propuesta incluye una etiqueta no permitida en la sección.");
-    if (element.attrs.some((item) => /^on/i.test(item.name))) throw new Error("La propuesta incluye un manejador de evento HTML.");
+    if (element.attrs.some((item) => /^on/i.test(item.name) || (["href", "src", "action", "formaction", "xlink:href"].includes(item.name) && /^\s*(?:javascript:|data:text\/html)/i.test(item.value)))) {
+      throw new Error("La propuesta incluye un manejador de evento o URL ejecutable.");
+    }
     if (attribute(element, "data-xpage-section") !== undefined) throw new Error("La propuesta no debe crear ni cambiar marcadores de sección.");
   }
   const nextSlots = markerValues(fragment, "data-xpage-slot");
@@ -135,6 +137,7 @@ export function validateScopedCss(css: string, sectionId: string) {
         continue;
       }
       if (node.type === "rule") {
+        if (node.nodes?.length) throw new Error("El CSS anidado no está permitido en una propuesta puntual.");
         const selectorList = selectorParser().astSync(node.selector);
         selectorList.each((selector) => {
           const first = selector.nodes.find((part) => part.type !== "comment");

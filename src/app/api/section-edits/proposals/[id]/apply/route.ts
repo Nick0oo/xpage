@@ -19,7 +19,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!landing) return NextResponse.json({ error: "La landing ya no existe." }, { status: 404 });
   const stale = landing.sectionRevision !== proposal.baseRevision || landingFingerprint(landing) !== proposal.baseFingerprint;
   if (stale) {
-    await prisma.sectionEditProposal.update({ where: { id: proposal.id }, data: { status: "stale" } });
+    await prisma.sectionEditProposal.updateMany({ where: { id: proposal.id, status: "pending" }, data: { status: "stale" } });
     await recordTraceStep(landing.traceId ?? undefined, {
       eventType: "revision", phase: "section-edit-reject", title: "Propuesta descartada por revisión obsoleta", status: "failed",
       errorMessage: "La landing cambió mientras se preparaba la propuesta.", techniqueIds: JSON.parse(proposal.techniqueIdsJson),
@@ -69,7 +69,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudo aplicar la propuesta.";
     if (message === "stale_revision") {
-      await prisma.sectionEditProposal.update({ where: { id: proposal.id }, data: { status: "stale" } }).catch(() => undefined);
+      await prisma.sectionEditProposal.updateMany({ where: { id: proposal.id, status: "pending" }, data: { status: "stale" } }).catch(() => undefined);
       return NextResponse.json({ error: "La landing cambió antes de aplicar. Actualiza la vista y vuelve a proponer." }, { status: 409, headers: { "X-XPage-Code": "stale_revision" } });
     }
     return NextResponse.json({ error: message === "proposal_consumed" ? "La propuesta ya se aplicó." : message }, { status: message === "proposal_consumed" ? 409 : 400 });

@@ -32,6 +32,14 @@ export async function POST(request: Request) {
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "La sección no se puede editar." }, { status: 409 });
   }
+  let cssContext: string;
+  let brief: unknown;
+  try {
+    cssContext = relevantCss(landing.css, input.sectionId, target.html);
+    brief = JSON.parse(landing.briefJson) as unknown;
+  } catch {
+    return NextResponse.json({ error: "El HTML, CSS o brief guardado no se puede editar con seguridad." }, { status: 409 });
+  }
   const techniques = input.techniqueIds.map((id) => {
     const technique = getTechnique(id);
     return `- ${technique.name}: propósito: ${technique.purpose} Entradas: ${technique.inputs} Aporte concreto: ${technique.artifact} Instrucción: ${technique.instruction}`;
@@ -45,7 +53,7 @@ TÉCNICAS SELECCIONADAS:
 ${techniques}
 
 BRIEF:
-${JSON.stringify(JSON.parse(landing.briefJson))}
+${JSON.stringify(brief)}
 
 INSTRUCCIÓN DE EDICIÓN:
 ${input.instruction}
@@ -54,7 +62,7 @@ SECCIÓN ACTUAL (innerHTML):
 ${target.innerHtml}
 
 CSS ACTUAL RELACIONADO:
-${relevantCss(landing.css, input.sectionId, target.html)}
+${cssContext}
 
 MEDIOS LOCALES QUE DEBES CONSERVAR:
 ${JSON.stringify(assets)}
