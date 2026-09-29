@@ -73,6 +73,7 @@ export async function POST(request: Request) {
     const plan = designPlanSchema.safeParse(result.data);
     if (plan.success && validateTechniqueCoverage(plan.data, techniqueIds)) {
       await recordEveTraceStep(input.traceId, {
+        eventType: "decision",
         phase: evePhase,
         title: "Plan estructurado · Eve",
         techniqueIds,
@@ -81,6 +82,9 @@ export async function POST(request: Request) {
         userPrompt: prompt,
         outputText: plan.data.prompt,
         output: plan.data,
+        skillVersions: Object.fromEntries(plan.data.contributions.map(({ techniqueId, skillVersion }) => [techniqueId, skillVersion])),
+        decisionSummary: plan.data.contributions.map(({ techniqueId, decision, status }) => `${techniqueId} (${status}): ${decision}`).join("\n"),
+        references: [{ kind: "source", id: "brief", label: "Brief aportado", sourceType: "brief" }],
         durationMs: Date.now() - eveStartedAt,
       });
       await updateTraceStatus(input.traceId, "prompt-ready");

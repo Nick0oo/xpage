@@ -27,6 +27,11 @@ model GenerationTrace {
   title       String
   contextJson String
   status      String                @default("active")
+  rootTraceId String?
+  parentTraceId String?
+  sourceTraceId String?
+  executionId String @default("")
+  sequenceCounter Int @default(0)
   createdAt   DateTime              @default(now())
   updatedAt   DateTime              @updatedAt
   steps       GenerationTraceStep[]
@@ -37,6 +42,15 @@ model GenerationTraceStep {
   id                String          @id
   traceId           String
   sequence          Int
+  executionId       String @default("")
+  rootTraceId       String?
+  parentTraceId     String?
+  parentStepId      String?
+  eventType         String @default("step")
+  skillVersionsJson String?
+  decisionSummary   String?
+  referencesJson    String?
+  metadataJson      String?
   phase             String
   title             String
   techniqueIdsJson  String?
@@ -53,4 +67,5 @@ model GenerationTraceStep {
   trace             GenerationTrace @relation(fields: [traceId], references: [id], onDelete: Cascade)
 
   @@index([traceId, sequence])
+  @@unique([executionId, sequence])
 }

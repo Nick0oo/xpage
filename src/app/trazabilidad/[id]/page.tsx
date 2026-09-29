@@ -91,6 +91,7 @@ export default async function TraceDetailPage({ params }: PageProps<"/trazabilid
             </div>
             <h1 className="mt-2 font-display text-3xl leading-tight sm:text-4xl">{trace.title}</h1>
             <p className="mt-2 text-sm text-muted-foreground">Iniciado {formatDate(trace.createdAt)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Ejecución {trace.executionId} · raíz {trace.rootTraceId}{trace.sourceTraceId ? ` · derivada de ${trace.sourceTraceId}` : ""}</p>
             {trace.landings.length ? (
               <div className="mt-4 flex flex-wrap gap-2">
                 {trace.landings.map((landing) => (
@@ -165,6 +166,8 @@ export default async function TraceDetailPage({ params }: PageProps<"/trazabilid
               trace.steps.map((step) => {
                 const stepTechniques = techniqueList(step.techniqueIds);
                 const output = asRecord(step.output);
+                const contributions = output && Array.isArray(output.contributions) ? output.contributions.flatMap((item) => asRecord(item) ? [asRecord(item)!] : []) : [];
+                const claims = output && Array.isArray(output.claims) ? output.claims.flatMap((item) => asRecord(item) ? [asRecord(item)!] : []) : [];
                 const outputCode = landingOutput(output);
                 const image = output && typeof output.image === "string" && typeof output.mediaType === "string"
                   ? { base64: output.image, mediaType: output.mediaType }
@@ -196,6 +199,22 @@ export default async function TraceDetailPage({ params }: PageProps<"/trazabilid
                       </dl>
 
                       {step.errorMessage ? <p className="rounded-lg bg-destructive/5 p-3 text-sm text-destructive">{step.errorMessage}</p> : null}
+
+                      {step.decisionSummary ? <p className="whitespace-pre-wrap rounded-lg bg-primary/5 p-3 text-sm leading-6">Síntesis de decisiones: {step.decisionSummary}</p> : null}
+                      {step.skillVersions && asRecord(step.skillVersions) ? <p className="text-xs text-muted-foreground">Versiones de skills: {Object.entries(asRecord(step.skillVersions)!).map(([key, value]) => `${key} ${String(value)}`).join(" · ")}</p> : null}
+                      {contributions.length ? (
+                        <section className="space-y-2" aria-label="Aportes por método">
+                          <h4 className="text-sm font-medium">Aportes por método</h4>
+                          <ul className="grid gap-2 sm:grid-cols-2">{contributions.map((item, index) => <li key={`${String(item.techniqueId)}-${index}`} className="rounded-lg border border-border p-3 text-sm"><strong>{String(item.techniqueId)} · {String(item.status)}</strong><p className="mt-1">{String(item.decision)}</p><p className="mt-1 text-xs text-muted-foreground">Artefacto: {String(item.artifact)}</p></li>)}</ul>
+                        </section>
+                      ) : null}
+                      {claims.length ? (
+                        <section className="space-y-2" aria-label="Afirmaciones y fuentes">
+                          <h4 className="text-sm font-medium">Afirmaciones y evidencia</h4>
+                          <ul className="space-y-2">{claims.map((claim, index) => <li key={index} className="rounded-lg border border-border p-3 text-sm"><span className="rounded bg-muted px-2 py-0.5 text-xs">{String(claim.status)}</span><p className="mt-2">{String(claim.text)}</p>{claim.source ? <p className="mt-1 text-xs text-muted-foreground">Fuente: {String(claim.source)}</p> : null}</li>)}</ul>
+                        </section>
+                      ) : null}
+                      {Array.isArray(step.references) && step.references.length ? <p className="text-xs text-muted-foreground">Referencias: {step.references.map((item, index) => { const ref = asRecord(item); return ref ? `${String(ref.kind)}: ${String(ref.label ?? ref.id)}` : `ref ${index + 1}`; }).join(" · ")}</p> : null}
 
                       {step.outputText ? (
                         <details className="rounded-lg border border-border p-3">

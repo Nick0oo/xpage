@@ -1,13 +1,10 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, GitBranch } from "lucide-react";
+import { ArrowRight, GitBranch } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { TraceList } from "@/components/trace-list";
 import { listGenerationTraces } from "@/lib/generation-traces";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
-}
 
 export default async function TracesPage() {
   const traces = await listGenerationTraces();
@@ -34,39 +31,7 @@ export default async function TracesPage() {
               Ir al Estudio <ArrowRight size={14} className="ml-2" aria-hidden="true" />
             </Link>
           </section>
-        ) : (
-          <ul className="space-y-3">
-            {traces.map((trace) => (
-              <li key={trace.id}>
-                <Link
-                  href={`/trazabilidad/${trace.id}`}
-                  className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent/25 sm:flex-row sm:items-center sm:justify-between sm:p-5"
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{trace.title}</span>
-                    <span className="mt-1 block text-xs text-muted-foreground">
-                      {formatDate(trace.updatedAt)} · {trace.stepCount} {trace.stepCount === 1 ? "paso" : "pasos"}
-                      {trace.landings.length ? ` · ${trace.landings[0].title}` : ""}
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-center">
-                    <span
-                      aria-label={trace.savedToLibrary ? "Guardada en Biblioteca" : "No guardada en Biblioteca"}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${trace.savedToLibrary ? "border-primary/20 bg-primary/5 text-primary" : "border-border text-muted-foreground"}`}
-                    >
-                      {trace.savedToLibrary ? <BookOpen size={13} aria-hidden="true" /> : <GitBranch size={13} aria-hidden="true" />}
-                      {trace.savedToLibrary ? "En Biblioteca" : "Solo trazabilidad"}
-                    </span>
-                    <span className="inline-flex items-center gap-2 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
-                      {trace.category} · {trace.status === "completed" ? "completado" : trace.status === "failed" ? "falló" : "en curso"}
-                      <ArrowRight size={13} aria-hidden="true" />
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
+        ) : <TraceList traces={traces} />}
       </div>
     </AppShell>
   );

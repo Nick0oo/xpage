@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 
 export type TraceStepInput = {
+  id?: string;
+  executionId?: string;
+  parentTraceId?: string;
+  parentStepId?: string;
+  eventType?: "step" | "decision" | "source" | "asset" | "revision" | "export";
   phase: string;
   title: string;
   techniqueIds?: string[];
@@ -14,6 +19,20 @@ export type TraceStepInput = {
   status?: "completed" | "failed";
   errorMessage?: string;
   durationMs?: number;
+  skillVersions?: Record<string, string>;
+  decisionSummary?: string;
+  references?: TraceReference[];
+  metadata?: Record<string, unknown>;
+};
+
+/** Contrato público de referencias: IDs estables, sin binarios dentro del evento. */
+export type TraceReference = {
+  kind: "project" | "revision" | "section" | "media-asset" | "source" | "claim" | "landing" | "url";
+  id: string;
+  label?: string;
+  url?: string;
+  sourceType?: "brief" | "documento" | "web" | "proveedor";
+  claimStatus?: "provided" | "external-evidence" | "hypothesis" | "inference";
 };
 
 export type ProviderAttemptTrace = {
@@ -50,25 +69,34 @@ export async function createGenerationTrace(input: {
         })
       : null;
 
+    const promptSteps = source?.steps.filter(
+      (step) => step.phase === "technique-prompt" || step.phase === "combined-prompt",
+    ) ?? [];
+
     const trace = await tx.generationTrace.create({
       data: {
         id,
         category: input.category,
         title: input.title,
         contextJson: JSON.stringify(input.context),
+        rootTraceId: source?.rootTraceId ?? source?.id ?? id,
+        parentTraceId: source?.id ?? null,
+        sourceTraceId: source?.id ?? null,
+        executionId: id,
+        sequenceCounter: promptSteps.length || (typeof input.context.prompt === "string" && input.context.prompt.trim() ? 1 : 0),
       },
       select: { id: true },
     });
-
-    const promptSteps = source?.steps.filter(
-      (step) => step.phase === "technique-prompt" || step.phase === "combined-prompt",
-    ) ?? [];
 
     if (promptSteps.length > 0) {
       await tx.generationTraceStep.createMany({
         data: promptSteps.map((step, index) => ({
           id: randomUUID(),
           traceId: id,
+          executionId: id,
+          rootTraceId: source?.rootTraceId ?? source?.id ?? id,
+          parentTraceId: source?.id ?? null,
+          parentStepId: step.id,
           sequence: index + 1,
           phase: step.phase,
           title: step.title,
@@ -93,6 +121,9 @@ export async function createGenerationTrace(input: {
         data: {
           id: randomUUID(),
           traceId: id,
+          executionId: id,
+          rootTraceId: source?.rootTraceId ?? source?.id ?? id,
+          parentTraceId: source?.id ?? null,
           sequence: 1,
           phase: "prompt-context",
           title: "Prompt utilizado para construir la landing",
@@ -128,18 +159,33 @@ export async function ensureLandingTrace(input: {
 
 export async function recordTraceStep(traceId: string | undefined, input: TraceStepInput) {
   if (!traceId) return;
-
-  const current = await prisma.generationTrace.findUnique({
-    where: { id: traceId },
-    select: { id: true, _count: { select: { steps: true } } },
-  });
-  if (!current) return;
-
-  await prisma.generationTraceStep.create({
-    data: {
-      id: randomUUID(),
+  return prisma.$transaction(async (tx) => {
+    // Acquire SQLite's write lock before reading, avoiding read-to-write lock upgrades
+    // when multiple workers append to the same trace concurrently.
+    const counter = await tx.generationTrace.update({
+      where: { id: traceId },
+      data: { sequenceCounter: { increment: 1 } },
+      select: { sequenceCounter: true },
+    });
+    if (input.id) {
+      const existing = await tx.generationTraceStep.findUnique({ where: { id: input.id }, select: { id: true } });
+      if (existing) {
+        await tx.generationTrace.update({ where: { id: traceId }, data: { sequenceCounter: { decrement: 1 } } });
+        return existing;
+      }
+    }
+    const current = await tx.generationTrace.findUnique({ where: { id: traceId }, select: { id: true, rootTraceId: true, executionId: true } });
+    if (!current) return;
+    await tx.generationTraceStep.create({
+      data: {
+      id: input.id ?? randomUUID(),
       traceId,
-      sequence: current._count.steps + 1,
+      executionId: input.executionId ?? current.executionId,
+      rootTraceId: current.rootTraceId ?? traceId,
+      parentTraceId: input.parentTraceId ?? null,
+      parentStepId: input.parentStepId ?? null,
+      eventType: input.eventType ?? "step",
+      sequence: counter.sequenceCounter,
       phase: input.phase,
       title: input.title,
       techniqueIdsJson: input.techniqueIds ? JSON.stringify(input.techniqueIds) : null,
@@ -152,12 +198,13 @@ export async function recordTraceStep(traceId: string | undefined, input: TraceS
       status: input.status ?? "completed",
       errorMessage: input.errorMessage ?? null,
       durationMs: input.durationMs ?? null,
-    },
-  });
-
-  await prisma.generationTrace.update({
-    where: { id: traceId },
-    data: { updatedAt: new Date() },
+      skillVersionsJson: input.skillVersions ? JSON.stringify(input.skillVersions) : null,
+      decisionSummary: input.decisionSummary ?? null,
+      referencesJson: input.references ? JSON.stringify(input.references) : null,
+      metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
+      },
+    });
+    await tx.generationTrace.update({ where: { id: traceId }, data: { updatedAt: new Date() } });
   });
 }
 
@@ -169,12 +216,17 @@ export async function recordProviderAttempts(input: {
   systemPrompt?: string;
   userPrompt: string;
   attempts: ProviderAttemptTrace[];
+  executionId?: string;
+  references?: TraceReference[];
 }) {
   if (!input.traceId) return;
 
   try {
     for (const attempt of input.attempts) {
+      const rawOutput = attempt.output as Record<string, unknown> | undefined;
+      const isInlineImage = rawOutput && typeof rawOutput.image === "string" && typeof rawOutput.mediaType === "string";
       await recordTraceStep(input.traceId, {
+        executionId: input.executionId,
         phase: input.phase,
         title: input.title,
         techniqueIds: input.techniqueIds,
@@ -183,7 +235,8 @@ export async function recordProviderAttempts(input: {
         systemPrompt: input.systemPrompt,
         userPrompt: input.userPrompt,
         outputText: attempt.outputText,
-        output: attempt.output,
+        output: isInlineImage ? { mediaType: rawOutput.mediaType, mediaReferencePending: true } : attempt.output,
+        references: input.references,
         status: attempt.status,
         errorMessage: attempt.errorMessage,
         durationMs: attempt.durationMs,
@@ -205,7 +258,6 @@ export async function setGenerationTraceStatus(traceId: string | undefined, stat
 
 export async function listGenerationTraces() {
   const traces = await prisma.generationTrace.findMany({
-    where: { steps: { some: { phase: "landing-generation" } } },
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { steps: true } },
@@ -219,6 +271,10 @@ export async function listGenerationTraces() {
     title: trace.title,
     context: parseJson(trace.contextJson),
     status: trace.status,
+    rootTraceId: trace.rootTraceId ?? trace.id,
+    parentTraceId: trace.parentTraceId,
+    sourceTraceId: trace.sourceTraceId,
+    executionId: trace.executionId || trace.id,
     createdAt: trace.createdAt.toISOString(),
     updatedAt: trace.updatedAt.toISOString(),
     stepCount: trace._count.steps,
@@ -244,12 +300,21 @@ export async function getGenerationTrace(id: string) {
     title: trace.title,
     context: parseJson(trace.contextJson),
     status: trace.status,
+    rootTraceId: trace.rootTraceId ?? trace.id,
+    parentTraceId: trace.parentTraceId,
+    sourceTraceId: trace.sourceTraceId,
+    executionId: trace.executionId || trace.id,
     createdAt: trace.createdAt.toISOString(),
     updatedAt: trace.updatedAt.toISOString(),
     landings: trace.landings,
     steps: trace.steps.map((step) => ({
       id: step.id,
       sequence: step.sequence,
+      executionId: step.executionId || trace.executionId || trace.id,
+      rootTraceId: step.rootTraceId ?? trace.rootTraceId ?? trace.id,
+      parentTraceId: step.parentTraceId,
+      parentStepId: step.parentStepId,
+      eventType: step.eventType,
       phase: step.phase,
       title: step.title,
       techniqueIds: parseJson(step.techniqueIdsJson),
@@ -262,6 +327,11 @@ export async function getGenerationTrace(id: string) {
       status: step.status,
       errorMessage: step.errorMessage,
       durationMs: step.durationMs,
+      skillVersions: parseJson(step.skillVersionsJson),
+      decisionSummary: step.decisionSummary,
+      references: parseJson(step.referencesJson),
+      metadata: parseJson(step.metadataJson),
+      sourceTraceId: step.parentTraceId,
       createdAt: step.createdAt.toISOString(),
     })),
   };
