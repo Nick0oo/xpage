@@ -10,6 +10,7 @@ type LandingRecord = {
   prompt: string;
   creativeDirectionJson: string | null;
   sectionRevision: number;
+  modelChoice: string;
   html: string;
   css: string;
   js: string;
@@ -45,6 +46,7 @@ function fromRecord(record: LandingRecord): SavedLanding {
     prompt: record.prompt,
     creativeDirection: record.creativeDirectionJson ? JSON.parse(record.creativeDirectionJson) : null,
     sectionRevision: record.sectionRevision,
+    modelChoice: record.modelChoice,
     html: record.html,
     css: record.css,
     js: record.js,
@@ -80,6 +82,7 @@ function toRecord(landing: SavedLanding) {
     techniqueIdsJson: JSON.stringify(landing.techniqueIds),
     prompt: landing.prompt,
     creativeDirectionJson: landing.creativeDirection ? JSON.stringify(landing.creativeDirection) : null,
+    modelChoice: landing.modelChoice,
     html: landing.html,
     css: landing.css,
     js: landing.js,

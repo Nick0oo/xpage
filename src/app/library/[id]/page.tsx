@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Download, ExternalLink } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Pencil } from "lucide-react";
 import { useParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { LandingPreview } from "@/components/preview/landing-preview";
@@ -118,6 +118,9 @@ export default function SavedLandingPage() {
               <p className="mt-2 text-sm text-muted-foreground">{landing.brief.topic} · Guardada el {new Intl.DateTimeFormat("es-CO", { dateStyle: "medium" }).format(new Date(landing.createdAt))} · Versión {landing.sectionRevision ?? 0}</p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
+              <Link href={`/?landingId=${encodeURIComponent(landing.id)}`} className={buttonVariants({ variant: "outline" })}>
+                <Pencil size={15} aria-hidden="true" /> Continuar en Studio
+              </Link>
               <Button type="button" variant="outline" onClick={openFullPage}>
                 <ExternalLink size={15} aria-hidden="true" /> Abrir página completa
               </Button>

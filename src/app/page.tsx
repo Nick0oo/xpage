@@ -15,7 +15,7 @@ import { MediaWorkspace } from "@/components/media/media-workspace";
 import { briefSchema, landingCodeSchema, type Brief, type PromptRequest } from "@/lib/schemas";
 import type { TechniqueId } from "@/lib/techniques";
 import type { ActiveLanding, PromptResult } from "@/lib/studio-types";
-import { recordHtmlExport, saveLanding } from "@/lib/landing-storage";
+import { getLanding, recordHtmlExport, saveLanding } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName } from "@/lib/preview-document";
 import { DEFAULT_MODEL_CHOICE, type ModelChoice } from "@/lib/model-choice";
 import { creativeDirectionsResponseSchema, type CreativeDirection } from "@/lib/creative-directions";
@@ -91,6 +91,7 @@ export default function Home() {
   const [directionTraceId, setDirectionTraceId] = useState<string | null>(null);
   const [directionModelChoice, setDirectionModelChoice] = useState<ModelChoice | null>(null);
   const pendingPromptTraces = useRef(new Map<string, { prompt: string; promise: Promise<void> }>());
+  const restoredLandingId = useRef<string | null>(null);
 
   const busy = batchGenerating || activeResultId !== null;
 
@@ -98,6 +99,35 @@ export default function Home() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: reducedMotion ? "auto" : "smooth" });
   }, [step]);
+
+  useEffect(() => {
+    const landingId = new URLSearchParams(window.location.search).get("landingId");
+    if (!landingId || restoredLandingId.current === landingId) return;
+    restoredLandingId.current = landingId;
+    let current = true;
+    void getLanding(landingId).then((landing) => {
+      if (!current) return;
+      if (!landing) throw new Error("No encontramos esta landing en la Biblioteca local.");
+      setActiveLanding({
+        code: { title: landing.title, html: landing.html, css: landing.css, js: landing.js },
+        brief: landing.brief,
+        techniqueIds: landing.techniqueIds,
+        prompt: landing.prompt,
+        traceId: landing.traceId ?? "",
+        savedId: landing.id,
+        modelChoice: landing.modelChoice,
+        designPlan: landing.creativeDirection?.designPlan ?? null,
+        creativeDirection: landing.creativeDirection ?? null,
+        mediaAssets: landing.mediaAssets ?? [],
+      });
+      setModelChoice(landing.modelChoice);
+      setSaveMessage("Landing abierta desde la Biblioteca. Revisiones y medios vigentes recuperados del disco local.");
+      setView("preview");
+    }).catch((error: unknown) => {
+      if (current) setFormError(error instanceof Error ? error.message : "No se pudo reabrir la landing.");
+    });
+    return () => { current = false; };
+  }, []);
 
   function changeBrief(field: keyof Brief, value: string) {
     const changed = brief[field] !== value;
@@ -456,6 +486,7 @@ export default function Home() {
         techniqueIds: activeLanding.techniqueIds,
         prompt: activeLanding.prompt,
         creativeDirection: activeLanding.creativeDirection ?? null,
+        modelChoice: activeLanding.modelChoice,
         html: activeLanding.code.html,
         css: activeLanding.code.css,
         js: activeLanding.code.js,

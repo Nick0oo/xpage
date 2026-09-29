@@ -102,6 +102,7 @@ export const savedLandingSchema = z.object({
   prompt: z.string().min(1).max(12_000),
   creativeDirection: creativeDirectionSchema.nullable().optional(),
   sectionRevision: z.number().int().nonnegative().optional(),
+  modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
   html: landingCodeSchema.shape.html,
   css: landingCodeSchema.shape.css,
   js: landingCodeSchema.shape.js,
