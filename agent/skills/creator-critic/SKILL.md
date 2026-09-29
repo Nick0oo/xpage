@@ -1,25 +1,21 @@
 ---
 name: creator-critic
-description: Registra propuesta, hallazgos y revisión concreta de UX y accesibilidad.
+description: Revisa una propuesta con hallazgos observables y produce una revisión concreta.
 ---
-# Creador y crítico · v1.0.0
+# Creador y crítico · v1.1.0
 
-## Propósito y cuándo usar
-Hacer visible una revisión real del plan y corregir sus defectos observables.
+## Propósito
+Mejora el plan mediante una propuesta seguida de una revisión verificable, sin exponer razonamiento privado.
 
-## Entrada
-Propuesta inicial, brief, DesignDNA, secciones, copy y restricciones.
+## Procedimiento
+1. Formula una propuesta breve de dirección y recorrido.
+2. Audita el plan frente al brief, DesignDNA, método seleccionado, accesibilidad y fuentes.
+3. Anota de dos a cinco hallazgos específicos: elemento, criterio afectado y efecto para la persona usuaria.
+4. Cambia secciones, copy, jerarquía o restricciones para resolver cada hallazgo.
+5. Revisa que los cambios no introduzcan claims, fricción o inconsistencias nuevas.
 
-## Pasos observables
-1. Escribe una propuesta breve antes de evaluarla.
-2. Identifica hallazgos concretos de claridad, jerarquía, fricción, accesibilidad y claims.
-3. Aplica una revisión que responda a esos hallazgos; no afirmes mejoras CRO medidas.
+## Entrega y verificación
+Completa `creatorCritic.proposal`, `findings` y `revision` con resúmenes de resultado, no cadena de pensamiento. Cada hallazgo debe corresponder a un cambio o explicar por qué no aplica. No afirmes mejora de conversión sin experimento.
 
-## Artefacto y comprobaciones
-Completa `creatorCritic.proposal`, `findings` y `revision`; registra qué cambió en `contributions`. Comprueba que la revisión resuelve al menos un hallazgo y no añade pruebas o métricas inventadas. Al seleccionar de nuevo, ejecuta una segunda pasada sobre la nueva propuesta.
-
-## Ejemplo breve
-Hallazgo: dos CTA compiten en el hero. Revisión: conservar uno y mover la acción secundaria al final del bloque.
-
-## Fuente
-Evaluación heurística del plan, no experimento ni medición de conversión.
+## Ejemplo
+Hallazgo: el CTA principal aparece antes de explicar qué incluye la oferta; revisión: añade una sección breve de alcance antes del CTA.

@@ -1,25 +1,21 @@
 ---
 name: human-copy
-description: Define voz y revisiones de copy antes/después sin añadir promesas no probadas.
+description: Escribe copy natural, específico y fiel a la evidencia disponible.
 ---
-# Copy humano · v1.0.0
+# Copy humano · v1.1.0
 
-## Propósito y cuándo usar
-Mejorar claridad y naturalidad manteniendo el significado respaldado.
+## Propósito
+Convertir el brief en texto claro que suene escrito para una persona, no en slogans genéricos.
 
-## Entrada
-Voz de marca, brief, textos actuales, audiencia y CTA.
+## Procedimiento
+1. Identifica voz, vocabulario del público y nivel de familiaridad a partir del brief.
+2. Redacta titulares con una idea central, subtítulos explicativos y párrafos concisos.
+3. Usa verbos concretos y CTA que indiquen la siguiente acción; evita urgencia y superlativos sin evidencia.
+4. Comprueba que cada dato, cifra, garantía, cita y claim provenga de una fuente disponible.
+5. Reescribe expresiones repetidas, relleno y patrones artificiales; conserva lenguaje inclusivo y directo.
 
-## Pasos observables
-1. Describe la voz en términos concretos y redacta ejemplos de microcopy.
-2. Reescribe frases vagas, rígidas o repetidas con verbos y beneficios comprensibles.
-3. Conserva claims y límites del brief; anota cada cambio relevante.
+## Entrega y verificación
+Completa copy para las secciones planeadas y registra ajustes importantes en `copyRevisions`. Enlaza claims con fuente y estado; lo desconocido queda como pregunta o se omite, nunca se inventa.
 
-## Artefacto y comprobaciones
-Completa `voice`, `copyRevisions` con pares `before`/`after` y razón, y los textos finales en `sections`. Revisa legibilidad, consistencia y ausencia de promesas nuevas.
-
-## Ejemplo breve
-Antes: «Experimente una solución integral». Después: «Organiza tus pedidos en un solo lugar». La segunda frase solo se usa si el brief respalda esa función.
-
-## Fuente
-Brief y copy suministrado.
+## Ejemplo
+En lugar de “revoluciona tu futuro”, explica qué actividad concreta podrá completar la persona y qué necesita para empezar.

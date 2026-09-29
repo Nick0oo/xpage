@@ -1,25 +1,21 @@
 ---
 name: ambitious-prompts
-description: Traduce motivaciones y objeciones hipotéticas en un recorrido claro.
+description: Traduce motivaciones y objeciones hipotéticas en un recorrido claro y específico.
 ---
-# Prompts ambiciosos · v1.0.0
+# Prompts ambiciosos · v1.1.0
 
-## Propósito y cuándo usar
+## Propósito
 Dar intención narrativa a cada sección sin presentar intuiciones como investigación.
 
-## Entrada
-Brief, público, oferta, acción esperada y datos probatorios disponibles.
+## Procedimiento
+1. Formula de dos a cuatro motivaciones y objeciones plausibles como hipótesis, no como hechos.
+2. Vincula cada hipótesis a una necesidad concreta del brief; evita perfiles demográficos inventados.
+3. Asigna a cada sección un propósito y una duda que resuelve.
+4. Ordena las secciones para pasar de interés a comprensión, evidencia disponible y acción.
+5. Elige un CTA coherente con la oferta y evita urgencia o promesas que el brief no respalde.
 
-## Pasos observables
-1. Formula motivaciones y objeciones plausibles como hipótesis explícitas.
-2. Asigna a cada sección un propósito que responda una duda o ayude al siguiente paso.
-3. Elige un CTA coherente con la oferta y el brief.
+## Entrega y verificación
+Registra hipótesis en `audienceHypotheses`, propósito en cada sección y aplicación en `contributions`. Ninguna hipótesis puede aparecer como dato medido o claim respaldado.
 
-## Artefacto y comprobaciones
-Registra hipótesis en `audienceHypotheses`, propósito en cada `section`, y evidencia de aplicación en `contributions`. Ninguna hipótesis puede aparecer como dato medido ni como claim respaldado.
-
-## Ejemplo breve
-Hipótesis: «el público podría querer aprender a su ritmo y dudar del tiempo requerido». No convertirlo en una estadística.
-
-## Fuente
-Brief. No se atribuyen hallazgos a investigación no suministrada.
+## Ejemplo
+Hipótesis: “el público podría querer aprender a su ritmo y dudar del tiempo requerido”. No conviertas esto en una estadística.

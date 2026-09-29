@@ -1,25 +1,21 @@
 ---
 name: subtractive-design
-description: Registra elementos retirados y su razón antes de reducir el recorrido.
+description: Audita secciones, adornos, copy y controles; elimina ruido sin sacrificar comprensión, evidencia o accesibilidad.
 ---
-# Diseño sustractivo · v1.0.0
+# Diseño sustractivo · v1.1.0
 
-## Propósito y cuándo usar
-Reducir ruido sin quitar información necesaria para comprender la oferta.
+## Propósito
+Conservar lo necesario para entender la oferta y actuar, retirando duplicación y ornamentación sin función.
 
-## Entrada
-Propuesta de secciones, controles, adornos y copy.
+## Procedimiento
+1. Da a cada sección una función y una pregunta concreta que resuelve.
+2. Revisa párrafos, tarjetas, navegación, badges, controles y recursos frente a esa función.
+3. Retira duplicados, contenido sin fuente, CTA secundarios competitivos y adornos que no apoyan el motivo visual.
+4. Conserva información factual necesaria, contexto para decidir y alternativas accesibles.
+5. Recomprueba ritmo y continuidad tras cada eliminación.
 
-## Pasos observables
-1. Revisa cada elemento frente al propósito de la sección.
-2. Elimina duplicados o elementos sin función y anota la razón de cada descarte.
-3. Revisa que la estructura final aún explique oferta, dudas esenciales y acción.
+## Entrega y verificación
+Registra eliminaciones concretas y su razón en `discardedElements`; documenta en `contributions.artifact` qué simplificaste. La estructura debe explicar oferta, objeción principal y siguiente paso. No confundas menos contenido con más claridad automáticamente.
 
-## Artefacto y comprobaciones
-Completa `discardedElements` con elemento y razón y deja la estructura resultante en `sections`. Comprueba que no se eliminó información factual necesaria ni una alternativa accesible.
-
-## Ejemplo breve
-Descartar una fila de logos ficticios porque el brief no acredita clientes; conservar una explicación del producto.
-
-## Fuente
-Brief y auditoría de contenido.
+## Ejemplo
+Retira una fila de logos sin respaldo; conserva una explicación breve del proceso que sí está descrito.

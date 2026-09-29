@@ -1,25 +1,21 @@
 ---
 name: image-assets
-description: Especifica imágenes por espacio; no afirma que el archivo ya exista.
+description: Especifica imágenes que apoyan el mensaje y su lugar exacto en la página.
 ---
-# Activos de imagen · v1.0.0
+# Activos de imagen · v1.1.0
 
-## Propósito y cuándo usar
-Definir intención visual para los espacios que realmente necesitan imagen.
+## Propósito
+Usar imágenes con una función comunicativa concreta, sin recurrir a decoración genérica ni afirmar que un archivo ya existe.
 
-## Entrada
-Secciones, DesignDNA, mensaje que debe apoyar cada imagen y destino.
+## Procedimiento
+1. Determina qué idea o acción requiere apoyo visual y en qué sección.
+2. Describe sujeto, acción, contexto, composición, luz, paleta, proporción y espacio para texto.
+3. Evita logos, texto incrustado, marcas y elementos que el brief no autoriza.
+4. Define texto alternativo que transmita el propósito; marca decoración como tal.
+5. Si una portada es útil, deja visible el costo o uso del proveedor configurado y conserva una alternativa sin imagen.
 
-## Pasos observables
-1. Decide si la imagen aporta información o atmósfera útil; evita decorado redundante.
-2. Para cada espacio, especifica sujeto, encuadre, luz, proporción, texto alternativo y uso.
-3. Distingue siempre la especificación de un activo buscado, generado o descargado.
+## Entrega y verificación
+Completa slots en `mediaSlots`, vinculados a secciones, con descripción suficientemente concreta para generación o búsqueda. Describe fuente/modelo solo cuando la operación ocurra; no declares licencia ni archivo disponible de antemano.
 
-## Artefacto y comprobaciones
-Usa `mediaSlots` con `type: image`, `subject`, `framing`, `lightingOrMotion`, `aspectRatio`, `altText` y propósito. Vincula el slot a la sección. La especificación no prueba que exista un archivo.
-
-## Ejemplo breve
-Una taza en primer plano, luz lateral suave, vertical 4:5, sin texto incrustado; alt describe la escena solo si la imagen comunica contenido.
-
-## Fuente
-Dirección creativa derivada del brief y DesignDNA.
+## Ejemplo
+Para explicar preparación: manos midiendo ingredientes sobre una mesa de trabajo, encuadre lateral, luz suave, sin texto ni envases con marca.
