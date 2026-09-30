@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Client } from "eve/client";
 import {
   DEFAULT_GEMINI_MODEL,
   DEFAULT_OPENROUTER_TEXT_MODEL,
@@ -27,8 +28,19 @@ export async function GET(request: Request) {
   if (!isLocalRequest(request)) {
     return NextResponse.json({ error: "Solo disponible desde XPage en desarrollo local." }, { status: 404 });
   }
+  let eveAvailable = false;
+  try {
+    const host = process.env.EVE_ORIGIN?.trim() || "http://127.0.0.1:3000";
+    await new Client({ host: host.replace(/\/$/, "") }).health();
+    eveAvailable = true;
+  } catch {
+    // Eve being reachable only confirms the local agent server is running.
+    // ChatGPT subscription authorization is verified by an actual model call.
+  }
+
   return NextResponse.json({
     modelId: "gpt-5.6-luna",
+    eveAvailable,
     geminiConfigured: isGeminiConfigured(),
     geminiModel: process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL,
     qwenConfigured: isOpenRouterConfigured(),
