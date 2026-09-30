@@ -66,11 +66,13 @@ async function getLoginStatus() {
     const child = spawn("codex", ["login", "status"], {
       shell: false,
       windowsHide: true,
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
     });
-    child.stdout?.on("data", (chunk: Buffer | string) => {
+    const collectStatus = (chunk: Buffer | string) => {
       if (statusOutput.length < 512) statusOutput += chunk.toString().slice(0, 512 - statusOutput.length);
-    });
+    };
+    child.stdout?.on("data", collectStatus);
+    child.stderr?.on("data", collectStatus);
     const timeout = setTimeout(() => {
       child.kill();
       finish({ available: true, loggedIn: false });
