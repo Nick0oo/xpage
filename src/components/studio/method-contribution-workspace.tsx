@@ -2,7 +2,8 @@
 
 import { Check, CircleAlert, CircleDashed, Clapperboard, Image, LoaderCircle, Merge, MessageCircle, Palette, Route, RotateCw, ScanSearch, Scissors, Search, ShieldCheck } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Dialog } from "@base-ui/react/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -76,137 +77,147 @@ const methodVisuals = {
 } as const;
 
 export function MethodContributionWorkspace({ runs, combining, disabled = false, editDisabled = false, onEdit, onCommit, onRetry, onCombine }: Props) {
+  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const latestRuns = useRef(runs);
+  const pendingEdits = useRef(new Map<string, { decision?: string; artifact?: string }>());
+  latestRuns.current = runs;
   const ready = runs.length > 0 && runs.every((run) => run.status === "ready" && run.contribution?.decision.trim() && run.contribution.artifact.trim());
   const doneCount = runs.filter((run) => run.status === "ready").length;
+  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? null;
+
+  function editField(run: TechniqueRun, field: "decision" | "artifact", value: string) {
+    pendingEdits.current.set(run.id, { ...pendingEdits.current.get(run.id), [field]: value });
+    onEdit(run.techniqueId, field, value);
+  }
+
+  function commitLatestRun(runId: string | null) {
+    if (!runId) return;
+    const edits = pendingEdits.current.get(runId);
+    if (!edits) return;
+    const current = latestRuns.current.find((run) => run.id === runId);
+    if (current?.contribution) onCommit({ ...current, contribution: { ...current.contribution, ...edits } });
+    pendingEdits.current.delete(runId);
+  }
 
   return (
     <section aria-labelledby="method-workspace-title" className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Trabajo por método · {doneCount}/{runs.length} listos</p>
-          <h3 id="method-workspace-title" className="mt-1 font-display text-xl sm:text-2xl">Revisa cada aporte antes de combinarlos</h3>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Cada tarjeta corresponde a una ejecución real de Eve. Puedes corregir sus decisiones y artefactos; la combinación recibirá exactamente esta versión.</p>
-        </div>
-        <Button type="button" onClick={onCombine} disabled={!ready || combining || disabled} className="w-full sm:w-auto">
-          {combining ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Merge aria-hidden="true" />}
-          {combining ? "Combinando aportes…" : "Combinar aportes con Eve"}
-        </Button>
-      </header>
+      <Dialog.Root open={selectedRunId !== null} onOpenChange={(open) => {
+        if (!open) {
+          commitLatestRun(selectedRunId);
+          setSelectedRunId(null);
+        }
+      }}>
+        <header className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 sm:p-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.15em] text-primary">Aportes de Eve · {doneCount}/{runs.length} listos</p>
+            <h3 id="method-workspace-title" className="mt-1 font-display text-xl sm:text-2xl">Revisa y combina</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Abre un método para ver o editar su aporte.</p>
+          </div>
+          <Button type="button" onClick={onCombine} disabled={!ready || combining || disabled} className="w-full sm:w-auto">
+            {combining ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Merge aria-hidden="true" />}
+            {combining ? "Combinando…" : "Combinar aportes"}
+          </Button>
+        </header>
 
-      <div aria-label="Síntesis de aportes por método" className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {runs.map((run) => {
-          const technique = getTechnique(run.techniqueId);
-          const visual = methodVisuals[run.techniqueId];
-          return (
-            <a key={run.id} href={`#method-${run.techniqueId}`} className="group flex min-h-24 gap-3 rounded-xl border border-border bg-card p-3 transition-colors hover:border-primary/30 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${visual.color}`}><visual.Icon size={17} aria-hidden="true" /></span>
-              <span className="min-w-0">
-                <span className="block text-xs font-semibold">{technique.name} · {run.status === "ready" ? "listo" : run.status === "error" ? "error" : run.status === "loading" ? "en curso" : "en cola"}</span>
-                <span className="mt-1 line-clamp-2 block text-xs leading-4 text-muted-foreground">{run.contribution?.decision ?? technique.purpose}</span>
-              </span>
-            </a>
-          );
-        })}
-      </div>
+        <ol aria-label="Aportes por método" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {runs.map((run) => {
+            const technique = getTechnique(run.techniqueId);
+            const visual = methodVisuals[run.techniqueId];
+            const StatusIcon = run.status === "ready" ? Check : run.status === "error" ? CircleAlert : run.status === "loading" ? LoaderCircle : CircleDashed;
+            const statusLabel = run.status === "ready" ? "Listo" : run.status === "error" ? "Error" : run.status === "loading" ? "En curso" : "En cola";
+            const summary = run.contribution?.decision.trim() || (run.status === "error" ? run.error : technique.purpose) || "Esperando a que inicie.";
+            return (
+              <li key={run.id} className="min-w-0">
+                <Dialog.Trigger onClick={() => setSelectedRunId(run.id)} className="group flex h-full w-full flex-col rounded-xl border border-border bg-card p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-muted/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <span className="flex w-full items-center gap-2.5">
+                    <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${visual.color}`}><visual.Icon size={17} aria-hidden="true" /></span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{technique.name}</span>
+                    <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-medium ${run.status === "error" ? "border-destructive/30 text-destructive" : run.status === "ready" ? "border-primary/25 text-primary" : "border-border text-muted-foreground"}`}>
+                      <StatusIcon size={12} className={run.status === "loading" ? "animate-spin" : ""} aria-hidden="true" />{statusLabel}
+                    </span>
+                  </span>
+                  <span className="mt-2 line-clamp-3 min-h-12 text-xs leading-4 text-muted-foreground">{summary}</span>
+                  <span className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary">Ver y editar <span aria-hidden="true">→</span></span>
+                </Dialog.Trigger>
+              </li>
+            );
+          })}
+        </ol>
 
-      <ol className="grid gap-4 xl:grid-cols-2">
-        {runs.map((run, index) => {
-          const technique = getTechnique(run.techniqueId);
-          const contribution = run.contribution;
-          const visual = methodVisuals[run.techniqueId];
-          const Icon = run.status === "ready" ? Check : run.status === "error" ? CircleAlert : run.status === "loading" ? LoaderCircle : CircleDashed;
-          return (
-            <li key={run.id} id={`method-${run.techniqueId}`} className="overflow-hidden rounded-2xl border border-border bg-card">
-              <div className="flex items-start justify-between gap-3 border-b border-border/70 bg-muted/30 p-4 sm:p-5">
-                <div className="flex min-w-0 gap-3">
-                  <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${visual.color}`}><visual.Icon size={19} aria-hidden="true" /></span>
-                  <div className="min-w-0">
-                    <h4 className="font-semibold"><span className="mr-2 font-mono text-xs text-muted-foreground">{String(index + 1).padStart(2, "0")}</span>{technique.name}</h4>
-                    <p className="mt-1 text-sm leading-5 text-muted-foreground">{technique.purpose}</p>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/45 backdrop-blur-[2px] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 transition-opacity" />
+          {selectedRun ? (() => {
+            const technique = getTechnique(selectedRun.techniqueId);
+            const contribution = selectedRun.contribution;
+            const visual = methodVisuals[selectedRun.techniqueId];
+            const StatusIcon = selectedRun.status === "ready" ? Check : selectedRun.status === "error" ? CircleAlert : selectedRun.status === "loading" ? LoaderCircle : CircleDashed;
+            return (
+              <Dialog.Popup className="fixed left-1/2 top-1/2 z-50 flex max-h-[85dvh] w-[min(820px,calc(100vw-1.25rem))] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl outline-none data-[starting-style]:scale-[0.98] data-[ending-style]:scale-[0.98] data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 transition-[transform,opacity]">
+                <header className="flex shrink-0 items-start gap-3 border-b border-border bg-card px-4 py-3.5 sm:px-6">
+                  <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg ${visual.color}`}><visual.Icon size={18} aria-hidden="true" /></span>
+                  <div className="min-w-0 flex-1">
+                    <Dialog.Title className="font-display text-lg font-semibold leading-6">{technique.name}</Dialog.Title>
+                    <Dialog.Description className="mt-0.5 text-sm leading-5 text-muted-foreground">{technique.purpose}</Dialog.Description>
                   </div>
-                </div>
-                <span role="status" className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${run.status === "error" ? "border-destructive/30 text-destructive" : run.status === "ready" ? "border-primary/25 text-primary" : "border-border text-muted-foreground"}`}>
-                  <Icon size={13} className={run.status === "loading" ? "animate-spin" : ""} aria-hidden="true" />
-                  <span className="hidden sm:inline">{stateCopy[run.status]}</span>
-                  <span className="sm:hidden">{run.status === "ready" ? "Listo" : run.status === "error" ? "Error" : run.status === "loading" ? "En curso" : "En cola"}</span>
-                </span>
-              </div>
+                  <span role="status" className={`mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${selectedRun.status === "error" ? "border-destructive/30 text-destructive" : selectedRun.status === "ready" ? "border-primary/25 text-primary" : "border-border text-muted-foreground"}`}>
+                    <StatusIcon size={13} className={selectedRun.status === "loading" ? "animate-spin" : ""} aria-hidden="true" />
+                    <span className="hidden sm:inline">{stateCopy[selectedRun.status]}</span>
+                    <span className="sm:hidden">{selectedRun.status === "ready" ? "Listo" : selectedRun.status === "error" ? "Error" : selectedRun.status === "loading" ? "En curso" : "En cola"}</span>
+                  </span>
+                  <Dialog.Close aria-label="Cerrar detalle del método" className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"><span aria-hidden="true" className="text-xl leading-none">×</span></Dialog.Close>
+                </header>
 
-              <div className="space-y-4 p-4 sm:p-5">
-                {run.status === "error" ? (
-                  <div className="rounded-xl border border-destructive/25 bg-destructive/[0.04] p-3.5" role="alert">
-                    <p className="text-sm leading-6 text-destructive">{run.error}</p>
-                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => onRetry(run)} disabled={disabled}>
-                      <RotateCw size={15} aria-hidden="true" /> Reintentar solo este método
-                    </Button>
-                  </div>
-                ) : null}
-                {run.status === "loading" ? (
-                  <div className="flex items-center gap-3 rounded-xl bg-primary/[0.04] px-3.5 py-4 text-sm text-muted-foreground" role="status">
-                    <LoaderCircle size={17} className="animate-spin text-primary" aria-hidden="true" />
-                    Eve está aplicando la skill y preparando el aporte propio de {technique.name.toLowerCase()}.
-                  </div>
-                ) : null}
-                {run.status === "queued" ? <p className="text-sm text-muted-foreground">Esperando a que inicie esta ejecución.</p> : null}
+                <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6">
+                  {selectedRun.status === "error" ? <div className="rounded-xl border border-destructive/30 bg-destructive/[0.04] p-3.5" role="alert">
+                    <p className="text-sm leading-5 text-destructive">{selectedRun.error || "Este método no pudo completarse."}</p>
+                    <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => onRetry(selectedRun)} disabled={disabled}><RotateCw size={15} aria-hidden="true" /> Reintentar solo este método</Button>
+                  </div> : null}
+                  {selectedRun.status === "loading" ? <div className="flex items-center gap-3 rounded-xl bg-primary/[0.04] px-3.5 py-3 text-sm text-muted-foreground" role="status"><LoaderCircle size={17} className="animate-spin text-primary" aria-hidden="true" />Eve está preparando el aporte de {technique.name.toLowerCase()}.</div> : null}
+                  {selectedRun.status === "queued" ? <p className="rounded-xl bg-muted/40 p-3 text-sm text-muted-foreground">Esperando a que inicie esta ejecución.</p> : null}
 
-                {contribution ? (
-                  <>
-                    {run.techniqueId === "image-assets" || run.techniqueId === "video-assets" ? <MethodMediaCandidates run={run} onChoose={(text) => {
+                  {contribution ? <>
+                    <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
+                      Decisión y resumen
+                      <Textarea aria-label={`Decisión de ${technique.name}`} value={contribution.decision} onChange={(event) => editField(selectedRun, "decision", event.target.value)} onBlur={() => commitLatestRun(selectedRun.id)} disabled={editDisabled} maxLength={1200} className="field-sizing-fixed min-h-24 max-h-[32dvh] resize-y overflow-y-auto text-sm font-normal leading-5 text-foreground" />
+                      <span className="block text-right text-[10px] font-normal">{contribution.decision.length}/1200</span>
+                    </label>
+                    <label className="block space-y-1.5 text-xs font-semibold text-muted-foreground">
+                      Artefacto editable
+                      <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => editField(selectedRun, "artifact", event.target.value)} onBlur={() => commitLatestRun(selectedRun.id)} disabled={editDisabled} maxLength={6000} className="field-sizing-fixed min-h-64 max-h-[50dvh] resize-y overflow-y-auto text-sm font-normal leading-5 text-foreground" />
+                      <span className="block text-right text-[10px] font-normal">{contribution.artifact.length}/6000</span>
+                    </label>
+                    {selectedRun.techniqueId === "image-assets" || selectedRun.techniqueId === "video-assets" ? <MethodMediaCandidates run={selectedRun} onChoose={(text) => {
                       const nextArtifact = `${contribution.artifact.trim()}\n\n${text}`;
                       if (nextArtifact.length > 6000) return false;
                       const nextContribution = { ...contribution, artifact: nextArtifact };
-                      onEdit(run.techniqueId, "artifact", nextArtifact);
-                      onCommit({ ...run, contribution: nextContribution });
+                      editField(selectedRun, "artifact", nextArtifact);
+                      onCommit({ ...selectedRun, contribution: nextContribution });
+                      pendingEdits.current.delete(selectedRun.id);
                       return true;
                     }} /> : null}
-                    <details className="rounded-xl border border-border bg-muted/20 p-3">
-                      <summary className="cursor-pointer text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">Ver resumen y decisiones</summary>
-                      <div className="mt-3 space-y-3">
-                        <div><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Resumen del método</p><p className="mt-1 text-sm leading-5">{contribution.decision}</p></div>
-                        <div><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Artefacto editable</p><p className="mt-1 whitespace-pre-wrap text-sm leading-5">{contribution.artifact}</p></div>
-                      </div>
-                    </details>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
-                        Decisión
-                        <Textarea aria-label={`Decisión de ${technique.name}`} value={contribution.decision} onChange={(event) => onEdit(run.techniqueId, "decision", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={1200} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
-                      </label>
-                      <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
-                        Artefacto visible
-                        <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={6000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
-                      </label>
-                    </div>
-                    <details className="rounded-xl border border-border bg-muted/20 p-3">
-                      <summary className="cursor-pointer text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">{"Ver contexto del m\u00e9todo"}</summary>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl bg-muted/40 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Entradas consideradas</p>
-                        <p className="mt-1.5 text-sm leading-5">{technique.inputs}</p>
-                      </div>
-                      <div className="rounded-xl bg-muted/40 p-3">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Qué entrega este método</p>
-                        <p className="mt-1.5 text-sm leading-5">{contribution.artifact}</p>
-                      </div>
-                      </div>
-                    </details>
-                    {contribution.tensions.length > 0 || contribution.resolution ? (
-                      <div className="rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-3 text-sm">
-                        <p className="font-medium">Tensiones y resolución</p>
-                        {contribution.tensions.length > 0 ? <p className="mt-1 text-muted-foreground">{contribution.tensions.join(" · ")}</p> : null}
-                        {contribution.resolution ? <p className="mt-1 text-muted-foreground">{contribution.resolution}</p> : null}
-                      </div>
-                    ) : null}
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span>Estado del aporte: {contribution.status} · skill {contribution.skillVersion}</span>
-                      <Link className="font-medium text-primary underline-offset-4 hover:underline" href={`/trazabilidad/${run.traceId}`}>Ver traza completa</Link>
-                    </div>
-                  </>
-                ) : null}
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+                  </> : null}
+
+                  <section className="rounded-xl border border-border bg-muted/20 p-3.5" aria-label="Contexto y trazabilidad del método">
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Contexto del método</h4>
+                    <p className="mt-1.5 text-sm leading-5">{technique.inputs}</p>
+                    {contribution && (contribution.tensions.length > 0 || contribution.resolution) ? <div className="mt-3 border-t border-border pt-3">
+                      <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">Tensiones y resolución</p>
+                      {contribution.tensions.length > 0 ? <p className="mt-1 text-sm leading-5 text-muted-foreground">{contribution.tensions.join(" · ")}</p> : null}
+                      {contribution.resolution ? <p className="mt-1 text-sm leading-5 text-muted-foreground">{contribution.resolution}</p> : null}
+                    </div> : null}
+                    {contribution ? <p className="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">Estado del aporte: {contribution.status} · versión de skill {contribution.skillVersion}</p> : null}
+                    <Link className="mt-2 inline-flex text-xs font-medium text-primary underline-offset-4 hover:underline" href={`/trazabilidad/${selectedRun.traceId}`}>Abrir traza completa <span aria-hidden="true" className="ml-1">↗</span></Link>
+                  </section>
+                </div>
+
+                <footer className="flex shrink-0 justify-end border-t border-border bg-card px-4 py-3 sm:px-6">
+                  <Dialog.Close className="inline-flex h-9 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Listo</Dialog.Close>
+                </footer>
+              </Dialog.Popup>
+            );
+          })() : null}
+        </Dialog.Portal>
+      </Dialog.Root>
     </section>
   );
 }
