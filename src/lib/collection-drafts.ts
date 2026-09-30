@@ -1,5 +1,6 @@
 import { briefSchema, type Brief } from "@/lib/schemas";
 import { MODEL_CHOICES } from "@/lib/model-choice";
+import { DEFAULT_GEMINI_MODEL, DEFAULT_OPENROUTER_TEXT_MODEL } from "@/lib/ai/providers";
 import { prisma } from "@/lib/prisma";
 
 export type GenerationDraft = {
@@ -13,6 +14,7 @@ export type GenerationDraft = {
   techniqueIds: string[];
   prompt: string | null;
   modelChoice: string | null;
+  originalModel: string | null;
   context: unknown;
   trace: {
     category: string;
@@ -38,6 +40,14 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function stringValue(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
+}
+
+function knownModelChoice(value: string | null): string | null {
+  if (!value) return null;
+  if (MODEL_CHOICES.includes(value as (typeof MODEL_CHOICES)[number])) return value;
+  if (value === DEFAULT_GEMINI_MODEL) return "gemini";
+  if (value === DEFAULT_OPENROUTER_TEXT_MODEL) return "qwen";
+  return null;
 }
 
 function landingCode(value: unknown) {
@@ -134,7 +144,9 @@ function normalizeDraft(trace: DraftTraceRecord, tracesById: Map<string, DraftTr
     : Array.isArray(stepTechniques) ? stepTechniques.filter((id): id is string => typeof id === "string") : [];
   const prompt = stringValue(context.prompt) ?? stringValue(step.userPrompt);
   const title = output.title ?? trace.title;
-  const modelChoice = stringValue(context.modelChoice) ?? stringValue(step.model);
+  const contextModel = stringValue(context.modelChoice);
+  const originalModel = stringValue(step.model) ?? contextModel;
+  const modelChoice = knownModelChoice(contextModel) ?? knownModelChoice(stringValue(step.model));
   const savedLandingId = trace.landings[0]?.id ?? null;
 
   return {
@@ -148,6 +160,7 @@ function normalizeDraft(trace: DraftTraceRecord, tracesById: Map<string, DraftTr
     techniqueIds,
     prompt,
     modelChoice,
+    originalModel,
     context,
     trace: {
       category: trace.category,
