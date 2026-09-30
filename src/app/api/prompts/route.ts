@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Los aportes recibidos no corresponden exactamente a los m\u00e9todos seleccionados.", code: "invalid_contributions" }, { status: 400 });
   }
   const techniques = techniqueIds.map(getTechnique);
+  const seedIntegration = techniqueIds.includes("seed-strings") ? `\n\nPROPAGACIÓN DE CADENAS SEMILLA: conserva la cadena y, sobre todo, selected_route y route_effect tal como los editó la persona; son autoritativos. Consume el dossier editado como decisión cerrada; no vuelvas a explorar ni a muestrear la ruta. Si una restricción genera una tensión que requiera revisar la adaptación, consulta xpage-adaptation; conserva referencias, tokens y composición del aporte salvo el ajuste necesario. No vuelvas a generar la cadena, sortear otra ruta ni reinterpretar la dirección seleccionada. Integra su efecto en designDNA, la composición/tarea de secciones y el prompt editable; incluye una contribución seed-strings que preserve el dossier. La cadena no es un motivo, paleta, hecho de marca ni fuente factual. Elige recetas que reflejen la ruta y verifica que aparece en varias secciones sin desplazar contenido, accesibilidad, restricciones ni CTA. No afirmes determinismo, aleatoriedad criptográfica ni fidelidad estadística.` : "";
   const enumerableRequest = requestedEnumerableContent(input.brief.offer);
   const selectedSystem = selectDesignSystem(input.brief);
   const compositionOptions = selectCompositionOptions(input.brief, 5);
@@ -58,6 +59,7 @@ Carga cada skill nombrada con load_skill y ejecuta sus procedimientos completos:
 
 APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensi\u00f3n, resu\u00e9lvela seg\u00fan hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisi\u00f3n en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
 ${JSON.stringify(input.methodContributions, null, 2)}
+${seedIntegration}
 
 ${designSystemContext}
 
@@ -169,12 +171,18 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\
 
 async function generateTechniqueContribution(input: Extract<PromptRequest, { mode: "technique" }>) {
   const technique = getTechnique(input.techniqueId);
-  const message = `Carga la skill ${technique.id} con load_skill y aplica solo el m\u00e9todo ${technique.id} (${technique.name}). Devuelve un aporte peque\u00f1o, estructurado y revisable por una persona. No construyas DesignPlan, secciones, HTML ni prompt final; eso corresponde a la combinaci\u00f3n posterior.
+  const contributionScope = input.techniqueId === "seed-strings"
+    ? "Genera un aporte estructurado, sustantivo y revisable por una persona, con el dossier de semilla completo descrito abajo. No construyas DesignPlan, secciones, HTML ni prompt final; eso corresponde a la combinación posterior."
+    : "Devuelve un aporte pequeño, estructurado y revisable por una persona. No construyas DesignPlan, secciones, HTML ni prompt final; eso corresponde a la combinación posterior.";
+  const message = `Carga la skill ${technique.id} con load_skill y aplica solo el m\u00e9todo ${technique.id} (${technique.name}). ${contributionScope}
 
 Prop\u00f3sito: ${technique.purpose}
 Entradas del m\u00e9todo: ${technique.inputs}
 Artefacto esperado: ${technique.artifact}
 Instrucci\u00f3n espec\u00edfica: ${technique.instruction}
+${input.techniqueId === "seed-strings" ? `
+
+CONTRATO DE SALIDA seed-strings (artefacto editable, límite de interfaz 6000 caracteres): en una sola llamada usa read_seed_reference con references=["string-seed-of-thought","xpage-adaptation","frontend-design","web-prototype-layouts","system-prompt-excerpts"]. Genera primero una cadena opaca corta y úsala para inducir tres rutas compositivas distintas que cumplan el mismo brief; selecciona una sola. EXCLUSIONES COMPOSITIVAS: cada patrón que el brief pida evitar es una condición dura para las tres candidatas, la seleccionada, el prompt editable y el HTML; por ejemplo, «avoid hero split» excluye cualquier hero dividido en toda la cadena de trabajo, aunque se renombre o cambie su decoración. No permitas que combine o HTML lo reintroduzcan. CALIBRACIÓN DE EXPRESIVIDAD: las tres rutas deben honrar el tono y brief.variety; no presentes dos rutas seguras y una atrevida como única opción para variedad atrevida. Diferencia cada par en al menos dos ejes estructurales (hero, orden/forma de secciones, escala/superficie gráfica, modo de explicar contenido o interacción si aplica) y nombra evidencia observable, no adjetivos. Para atrevida/lúdica, propone una ruptura compositiva real, gesto gráfico específico del sujeto y variación visible de escala/superficie; no la reduzcas a cambiar paleta ni la resuelvas como índice tipográfico lineal con otro nombre. Selecciona la ruta que mejor exprese el brief, no la primera segura. Papel crema/rojo es válido solo si brief o concepto lo sostiene; no hay prohibición universal ni mandato de neón. Si el brief pide interacción local, define control y estado exactos, activación por teclado/foco, contenido sin JS y fallback reduced-motion. Resume las rutas y el efecto observable elegido, sin razonamiento privado. Devuelve en artifact un dossier completo y legible en una ficha con etiquetas: seed, seed_role, references_read, design_system_source, valid_routes, selected_route, route_effect, brand_motif_proposal, palette_roles (fondo/superficie/texto/secundario/acento/borde/foco, con valores propuestos), typography (stack local y escala), composition (ancho/ritmo/alineación/escala), hero_and_sections (gesto hero y tratamiento por sección), continuity_rules (3-5 observables), content_homes (asigna cada inventario/conteo pedido a su sección; hero/detalle/entrega o demostración/cierre), interaction (si se solicita, control/estado exacto; teclado/foco y fallback sin JS/reduced-motion), constraints_kept. Apunta a 2200-4500 caracteres, nunca más de 6000; las propuestas estéticas deben etiquetarse como propuestas. La persona debe poder editarla; selected_route y sus reglas editadas son autoritativas durante la combinación. DesignDNA es una propuesta derivada del brief, separada de la cadena. Conserva contenido completo, marca confirmada, CTA, restricciones y accesibilidad. No afirmes que XPage implementa muestreo estadístico, aleatoriedad criptográfica o determinismo.` : ""}
 
 Brief completo:
 ${JSON.stringify(input.brief)}

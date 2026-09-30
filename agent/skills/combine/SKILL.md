@@ -47,6 +47,14 @@ Image-assets pide mostrar una acción y negative-constraints exige poco movimien
 ## No hacer
 No concatenar métodos, crear una sección por método, repetir una fila de tarjetas, inferir investigación, presentar intuición CRO como medición, resumir entregables pedidos, omitir conflictos, inventar acciones, ni exponer razonamiento privado.
 
+## Propagación de Cadenas semilla
+
+Cuando `seed-strings` está seleccionado, lee su skill completa y conserva el dossier de `contributions[].artifact` como una decisión revisable. La cadena es una señal efímera de exploración; no es un motivo, paleta, hecho de marca ni instrucción codificada. Usa `selected_route` y `route_effect` del artefacto editado por la persona como autoridad. No regeneres, sustituyas ni interpretes de nuevo la semilla durante la combinación.
+
+Propaga la dirección elegida por cuatro puntos: (1) resume su traducción a `designDNA` como propuesta derivada del brief; (2) aplícala al propósito, orden y gesto compositivo de las secciones y a las recetas realmente usadas; (3) describe los mismos recursos concretos e invariantes en el campo `prompt` editable; (4) preserva la ficha de semilla en la contribución final. Si el usuario edita la ruta, el motivo o una regla del prompt, refleja esa edición y ajusta sus dependencias. Si una restricción confirmada limita la ruta, registra `modified` y explica la adaptación. No afirmes distribución estadística, determinismo ni resultados experimentales para esta adaptación de diseño.
+
+Comprueba al cierre que la ruta sigue siendo visible en el plan y el prompt, que se reconoce en varias secciones con funciones distintas y que no desplaza copy obligatorio, marca aprobada, CTA, accesibilidad ni contenido completo. En la construcción HTML, las reglas del prompt son el contrato: aplícalas en composición y recursos CSS/SVG locales sin volver a sortear una ruta.
+
 ## Procedimiento de integración, de principio a fin
 
 ### A. Fijar el contrato de la página

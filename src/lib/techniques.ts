@@ -25,11 +25,11 @@ export const techniques: readonly Technique[] = [
   {
     id: "seed-strings",
     name: "Cadenas semilla",
-    summary: "Fija una identidad visual consistente desde el brief.",
-    purpose: "Convertir los datos de marca y oferta en reglas visuales reutilizables.",
-    inputs: "Hechos del brief, marca, tono y restricciones.",
-    artifact: "Motivo, paleta por roles, tipografía, composición e invariantes.",
-    instruction: "Distingue hechos e hipótesis. Define un motivo visual concreto y de tres a cinco invariantes visibles en todas las secciones; comprueba contraste y consistencia.",
+    summary: "Usa una cadena efímera para elegir una dirección compositiva diversa y fiel al brief.",
+    purpose: "Inducir una ruta creativa concreta entre posibilidades válidas y dejarla lista para desarrollar e integrar.",
+    inputs: "Brief completo, contenido obligatorio, controles de marca/accesibilidad y sus límites.",
+    artifact: "Ficha breve y editable con cadena opaca, tres rutas válidas, ruta elegida, efecto observable, traducción visual y restricciones preservadas.",
+    instruction: "Aplica String Seed of Thought como inspiración de prompting, no como generador de identidad: crea una cadena aleatoria corta sin significado temático y úsala para inducir una ruta entre tres composiciones plausibles que cumplen el mismo brief. Resume la ruta elegida y su efecto sin exponer razonamiento privado. Separa la cadena del motivo visual: deriva DesignDNA del brief y registra propuesta, no investigación. Conserva contenido, marca, accesibilidad y cambios del usuario; no alegues aleatoriedad criptográfica, determinismo ni fidelidad estadística. Incluye en artifact un dossier sustantivo editable de 2200 a 4500 caracteres (sin exceder el límite de 6000) con cadena, referencias cargadas, fuente del sistema, tres rutas, motivo propuesto, tokens por rol, stack tipográfico local, gesto del hero y tratamientos por sección, reglas de continuidad, destinos del inventario obligatorio, interacción accesible y restricciones preservadas.",
   },
   {
     id: "ambitious-prompts",
