@@ -37,6 +37,8 @@ Antes de generar alternativas, extrae del brief:
 
 Estas condiciones delimitan todas las alternativas. No uses la semilla para cambiar nombre, oferta, cantidad, destinatario, claims, precios, funcionamiento ni CTA.
 
+Cada exclusión compositiva explícita también es una condición dura, no una preferencia: aplícala a las tres candidatas, la ruta seleccionada, el prompt editable y el HTML final. Por ejemplo, si el brief dice «avoid hero split», ninguna candidata puede proponer un hero dividido y `combine`/HTML no lo pueden reintroducir. Comprueba la forma real de cada composición, aunque use otro nombre o tratamiento gráfico.
+
 ### 2. Fija el espacio de variación
 
 Identifica las decisiones compositivas que el brief permite variar, pero aún no elijas ni desarrolles una ruta. Cambia decisiones estructurales relevantes, no solo paleta, adjetivos o adornos. Entre las dimensiones posibles están:
@@ -47,13 +49,13 @@ Identifica las decisiones compositivas que el brief permite variar, pero aún no
 - cómo se presentan los entregables o la evidencia;
 - cómo se resuelve el cierre y se reencuentra el CTA.
 
-La variedad queda dentro del conjunto válido que fijó el paso anterior. No alteres hechos ni requisitos para obtener novedad. Si el usuario pidió una distribución o referencias concretas, describe esa distribución de forma explícita; sin una distribución de entrada, no alegues fidelidad estadística.
+La variedad solicitada y el tono son condiciones de entrada, no adjetivos para el copy final. Si el usuario pide una dirección atrevida, lúdica o visualmente intensa, las tres alternativas admisibles también deben respetar ese nivel de expresión; no presentes dos rutas seguras y una única ruta atrevida como coartada. Si pide sutileza, conserva el mismo cuidado y variedad estructural con gestos más discretos. No alteres hechos ni requisitos para obtener novedad. Si el usuario pidió una distribución o referencias concretas, describe esa distribución de forma explícita; sin una distribución de entrada, no alegues fidelidad estadística.
 
 ### 3. Crea y aplica la cadena
 
-Genera primero una cadena corta y opaca (por ejemplo, `q7-Lm2-vP`). No asignes significado temático a sus caracteres, no presentes la cadena como una palabra clave mágica y no afirmes que puede reproducirse exactamente en otra ejecución. La cadena es una señal de prompting, no una fuente de hechos.
+Genera primero una cadena corta y opaca con formato libre (por ejemplo, `rZ6.18/aQ`). No asignes significado temático a sus caracteres, no repitas una plantilla de caracteres como si codificara una estética o ruta, no presentes la cadena como una palabra clave mágica y no afirmes que puede reproducirse exactamente en otra ejecución. Varía la forma literal entre ejecuciones sin atribuir significado al formato. La cadena es una señal de prompting, no una fuente de hechos.
 
-Usa la cadena para inducir tres rutas compositivas breves dentro de las posibilidades válidas y comprométete con una sola. Cambia al menos una decisión estructural. Resume en lenguaje normal el efecto creativo observado: por ejemplo, «prioriza una demostración secuencial con anotaciones breves»; no expongas razonamiento privado ni finjas que la cadena contiene esa instrucción literalmente. Registra las otras rutas como alternativas revisables, no como páginas adicionales ni como una lista de pensamiento privado.
+Usa la cadena para inducir tres rutas compositivas breves dentro de las posibilidades válidas y comprométete con una sola. Cada alternativa debe diferenciarse de las otras en al menos dos ejes sustantivos: estructura del hero, orden/forma de las secciones, escala y superficie gráfica, tratamiento del contenido o interacción local cuando sea pertinente. Describe evidencia visible para cada diferencia; renombrar el mismo índice lineal o cambiar solo paleta no cuenta. Todas deben corresponder al tono y variedad del brief, y selecciona la que exprese mejor esa intención en lo observable, no simplemente la primera opción segura. Resume el efecto creativo en lenguaje normal; no expongas razonamiento privado ni finjas que la cadena contiene la instrucción literalmente. Registra las otras rutas como alternativas revisables, no como páginas adicionales.
 
 Una cadena distinta puede ayudar a explorar otra dirección si la persona pide alternativas; no prometas que cambiar la cadena producirá necesariamente un resultado distinto. En XPage, la contribución normal selecciona una dirección para que `combine` pueda desarrollarla, no genera varias landing pages.
 
@@ -67,14 +69,14 @@ Expresa la dirección elegida como una decisión visual y editorial concreta lig
 - `composition`: explica el ritmo, la escala, la alineación y el patrón de lectura seleccionados.
 - `invariants`: de tres a cinco reglas observables para dar continuidad con variación funcional entre secciones.
 
-Elige dos a cuatro `compositionRecipeIds` del catálogo que se usen de verdad. Una receta es vocabulario compositivo, no una piel rígida. Asigna a cada sección una forma acorde con su tarea y conserva la dirección elegida al pasar de hero a detalle, entrega, dudas pertinentes y cierre. Incluye recursos gráficos locales (CSS/SVG, tipografía, líneas, diagramas, anotaciones o recortes) cuando aclaren el concepto; no añadas adorno por cumplir.
+Elige dos a cuatro `compositionRecipeIds` del catálogo que se usen de verdad. Una receta es vocabulario compositivo, no una piel rígida. Asigna a cada sección una forma acorde con su tarea y conserva la dirección elegida al pasar de hero a detalle, entrega, dudas pertinentes y cierre. Incluye recursos gráficos locales (CSS/SVG, tipografía, líneas, diagramas, anotaciones o recortes) cuando aclaren el concepto; no añadas adorno por cumplir. Para una petición atrevida o lúdica, muestra la ruptura en decisiones implementables: una escala que cambie con intención, un gesto gráfico derivado del sujeto y superficies o ritmos que varíen entre secciones. Una dirección atrevida no exige neón, y una composición editorial cálida no es el valor por defecto: papel crema y acento rojo solo encajan si el brief o el concepto elegido los justifica.
 
 ### 5. Registra un aporte breve y editable
 
 Devuelve los campos del contrato `TechniqueContribution`. `decision` resume la ruta elegida y por qué sirve al brief. En `artifact`, guarda una ficha sustantiva pero compacta (apunta a 2,200–4,500 caracteres; nunca excedas el límite de interfaz de 6,000) que pueda revisar y editar la persona. Incluye tokens propuestos por rol con valores concretos, un gesto compositivo aplicable sección por sección y destinos claros para el contenido obligatorio. No escribas copy final ni reemplaces el trabajo de `combine`:
 
 ```text
-seed: q7-Lm2-vP
+seed: rZ6.18/aQ
 seed_role: señal efímera; no es un hecho, palabra clave ni motivo
 references_read: string-seed-of-thought; frontend-design; web-prototype-layouts; system-prompt-excerpts; xpage-adaptation
 design_system_source: selector local de XPage pendiente de combine; la referencia de sistema cargada es solo inspiración, no skin heredada
@@ -87,7 +89,7 @@ typography: stack local y escala/tamaño/altura de línea por nivel
 composition: ancho/ritmo/alineación/escala; gesto del hero y tratamiento de cada sección
 continuity_rules: 3–5 reglas observables y dónde reaparecen
 content_homes: hero=...; detalle=...; entrega/demostración=... (mapea cada inventario y cantidad requerida); cierre=...
-interaction: control local útil, operación por teclado/foco, estado sin JS y fallback de movimiento
+interaction: comportamiento exacto del control pedido o elegido; semántica/teclado/foco, estado sin JS y fallback reduced-motion
 constraints_kept: hechos, inventario/cantidades, marca, accesibilidad, CTA
 ```
 
@@ -108,6 +110,9 @@ La dirección queda completa solo cuando se puede reconocer en más de un punto 
 ## Reglas de calidad
 
 - **Contraste real:** las rutas se distinguen por composición o modo de explicación, no por renombrar el mismo split ni por cambiar solamente colores.
+- **Variedad calibrada:** cada ruta admisible corresponde al tono y nivel de variedad expresos. Para `atrevida`, incluye diferencias estructurales y de escala/superficie que se puedan localizar en el plan; evita pares que sean el mismo índice lineal con títulos distintos. Enuncia el hecho visual que prueba la diferencia.
+- **Dirección específica:** deriva la forma gráfica principal de la oferta o del sujeto; no uses una estética educativa editorial, papel crema o acento rojo como opción automática. Esas decisiones son válidas si la premisa las sostiene. Tampoco fuerces colores brillantes o neón para aparentar variedad.
+- **Interacción completa:** si el brief pide interacción local, describe el control exacto, sus estados, activación por teclado/foco y el contenido/fallback sin JavaScript o movimiento. Si no se pidió, propón interacción solo si mejora una tarea real.
 - **Expresividad con función:** elige un gesto visual concreto y desarróllalo con variaciones de escala, orientación o densidad. No uses un blob, gradiente, garabato o patrón aleatorio solo para alegar originalidad.
 - **Brief completo:** preserva todas las piezas solicitadas. No resumas una lista enumerable como promesa ni rellenes con secciones sin contenido.
 - **Integridad factual:** intuiciones de diseño son propuestas, no investigación de marca o audiencia. No inventes evidencia, beneficios, métricas, testimonios ni garantías.
@@ -122,7 +127,7 @@ La dirección queda completa solo cuando se puede reconocer en más de un punto 
 Brief hipotético de práctica: taller para principiantes; el brief proporciona cuatro pasos (cortar, plegar, coser, cubrir), pide mostrarlos todos y da un enlace de inscripción. No proporciona marca, testimonios ni paleta. Esta muestra no es una plantilla ni un sistema predeterminado:
 
 ```text
-seed: p9-Kv4-nQ
+seed: bQ.7r/J2
 seed_role: señal efímera de variación; no aporta significado visual
 references_read: string-seed-of-thought, frontend-design, web-prototype-layouts, system-prompt-excerpts, xpage-adaptation
 design_system_source: sistema final pendiente del selector local de XPage; colores siguientes son propuesta para este ejemplo
