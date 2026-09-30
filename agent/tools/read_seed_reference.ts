@@ -1,4 +1,4 @@
-import { OPEN_DESIGN_REFERENCE_IDS, readLocalReference, type OpenDesignReferenceId } from "@/lib/open-design-references";
+import { OPEN_DESIGN_REFERENCE_IDS, readLocalReference, type OpenDesignReferenceId } from "../../src/lib/open-design-references";
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 

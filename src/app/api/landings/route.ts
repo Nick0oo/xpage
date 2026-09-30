@@ -3,6 +3,7 @@ import { parseFragment, type DefaultTreeAdapterTypes } from "parse5";
 import postcss from "postcss";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { landingCodeSchema, landingRequestSchema } from "@/lib/schemas";
+import { publicCopyDisclosureFindings } from "@/lib/design-plan";
 import { z } from "zod";
 import { formatHtmlCompositionSeeds } from "@/lib/design-templates/html-seeds";
 import {
@@ -27,9 +28,17 @@ CTA: cada llamada a la acción debe funcionar. Usa la URL proporcionada en el br
 
 INTERACCIÓN Y REVISIÓN: antes de entregar, realiza una crítica focalizada de cinco criterios: (1) brief y claims respaldados; (2) jerarquía/ritmo y variedad de composición; (3) detalle y requisitos completos; (4) teclado, foco, contraste, semántica, móvil y reduced-motion; (5) coherencia con DesignDNA, composición, secciones, slots y CTA. Corrige los defectos de mayor impacto. No reportes capturas, mediciones ni pruebas visuales si no se ejecutaron; esta revisión del código es una autoinspección, no una medición. Cuando ayude a comprender, añade una interacción local útil y accesible; su contenido debe existir completo sin JavaScript. Evita formularios ficticios, botones decorativos y controles sin respuesta. No reveles razonamiento privado.
 
+COPY PÚBLICO: hipótesis, dudas internas, datos ausentes y decisiones de diseño pertenecen al plan/traza. No copies notas como “el brief no concreta…”, “por definir”, “no representa una función…” o “no se presentan ejemplos” a los párrafos de la landing. Explica directamente la oferta con los hechos disponibles. Si el usuario pidió artículos, ejercicios, recetas u otros materiales creativos, escribe las piezas completas y rotúlalas como muestra cuando sea necesario; no las presentes como historial real.
+
 REQUISITOS DE CONTENIDO: cada elemento de explicitContentRequirements es obligatorio. Incluye todos los requiredItems completos, visibles y legibles dentro de su sección; no los reemplaces con un titular que solo mencione una cantidad. El texto debe seguir presente al desactivar JavaScript.
 
 IMPLEMENTACIÓN: usa HTML semántico, estilos móviles primero, foco visible, contraste suficiente y prefers-reduced-motion. A 360, 390, 768 y 1440 px evita overflow horizontal: deja envolver titulares, usa tamaños fluidos, min-width:0 en hijos flex/grid y mantén notas, controles y SVG dentro del viewport. JavaScript solo para interacciones reales, locales y accesibles. No uses React, frameworks, imports, CDNs, fuentes/imágenes remotas, iframes, formularios con envío, red, almacenamiento web ni acceso al documento padre. Para medios, usa composición CSS/SVG que sí comunique hasta que exista un recurso local; nunca dejes un bloque vacío o un placeholder genérico. Devuelve solamente los campos del esquema.`;
+
+function htmlReferenceInstructions(prompt: string) {
+  const references = ["frontend-design", "web-prototype-skill", "web-prototype-layouts", "web-prototype-checklist", "system-prompt-excerpts"];
+  if (/seed-strings|selected_route|Cadenas semilla/i.test(prompt)) references.push("string-seed-of-thought", "xpage-adaptation");
+  return `\n\nREFERENCIAS LOCALES ATRIBUIDAS: en una sola llamada de la fase HTML, usa read_seed_reference con references=${JSON.stringify(references)}. Lee el contenido y aplica solo principios que sirvan al plan y al sandbox local. Son referencias textuales de OpenDesign con licencia/atribución en el repo; el runtime/plugin externo no forma parte de Eve. No repitas cargas por método.\n`;
+}
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -50,9 +59,9 @@ export async function POST(request: Request) {
   const startedAt = Date.now();
   const compositionSeeds = formatHtmlCompositionSeeds(prompt);
   const seedCraftInstructions = /seed-strings|selected_route|Cadenas semilla/i.test(prompt)
-    ? `\n\nDIRECCIÓN CON CADENAS SEMILLA: antes de programar, carga la skill seed-strings y usa read_seed_reference en una sola llamada para consultar web-prototype-skill, web-prototype-checklist, system-prompt-excerpts y xpage-adaptation. Lee la contribución y el prompt final como contrato: aplica literalmente la ruta y reglas que la persona dejó editadas. Conserva su ascendencia visual en composición, ritmo y detalles locales a través de varias secciones; no vuelvas a generar la semilla, no elijas otra dirección ni derives colores del identificador. Mantén el contenido obligatorio, marca, CTA y controles de accesibilidad del plan. Usa las referencias de OpenDesign como inspiración adaptada al HTML/CSS/JS autónomo de XPage; no copies sistemas o herramientas externas.`
+    ? `\n\nDIRECCIÓN CON CADENAS SEMILLA: antes de programar, carga la skill seed-strings. Lee la contribución y el prompt final como contrato: aplica literalmente la ruta y reglas que la persona dejó editadas. Conserva su ascendencia visual en composición, ritmo y detalles locales a través de varias secciones; no vuelvas a generar la semilla, no elijas otra dirección ni derives colores del identificador. Mantén el contenido obligatorio, marca, CTA y controles de accesibilidad del plan. Usa las referencias de OpenDesign como inspiración adaptada al HTML/CSS/JS autónomo de XPage; no copies sistemas o herramientas externas.`
     : "";
-  const message = `${landingInstructions}${seedCraftInstructions}\n\nPROMPT EDITABLE DEL PLAN\n${prompt}\n\nFRAGMENTOS DE COMPOSICIÓN HTML/CSS XPage\n${compositionSeeds}\n\nAdapta estos esqueletos a los IDs, contenido, medio y DesignDNA del prompt; mezcla sus patrones por sección y altera las partes que no encajen. Son fragmentos concretos de referencia, no secciones adicionales obligatorias ni una plantilla global. Sustituye todo texto de ejemplo/placeholder por copy del plan. Usa solo media slots del plan; quita data-xpage-slot si no existe slot real. Mantén las secciones y detalles del brief aunque el esqueleto sea más breve.\n\nSECCIONES OBLIGATORIAS\n${JSON.stringify(plannedSectionIds)}\n\nREQUISITOS VERIFICABLES\n${JSON.stringify(explicitContentRequirements, null, 2)}\n\nEntrega una landing completa y funcional. Prioriza la intención de marca y requisitos del prompt dentro de estos límites de vista previa.`;
+  const message = `${landingInstructions}${htmlReferenceInstructions(prompt)}${seedCraftInstructions}\n\nPROMPT EDITABLE DEL PLAN\n${prompt}\n\nFRAGMENTOS DE COMPOSICIÓN HTML/CSS XPage\n${compositionSeeds}\n\nAdapta estos esqueletos a los IDs, contenido, medio y DesignDNA del prompt; mezcla sus patrones por sección y altera las partes que no encajen. Son fragmentos concretos de referencia, no secciones adicionales obligatorias ni una plantilla global. Sustituye todo texto de ejemplo/placeholder por copy del plan. Usa solo media slots del plan; quita data-xpage-slot si no existe slot real. Mantén las secciones y detalles del brief aunque el esqueleto sea más breve.\n\nSECCIONES OBLIGATORIAS\n${JSON.stringify(plannedSectionIds)}\n\nREQUISITOS VERIFICABLES\n${JSON.stringify(explicitContentRequirements, null, 2)}\n\nEntrega una landing completa y funcional. Prioriza la intención de marca y requisitos del prompt dentro de estos límites de vista previa.`;
   const attempts: Array<{ provider: string; model: string; status: "completed" | "failed"; durationMs: number; output?: unknown; errorMessage?: string }> = [];
   let cssParsePassed: boolean | null = null;
   let initialQualityFindings: string[] = [];
@@ -200,6 +209,7 @@ function missingLandingElements(html: string, requirements: Array<{ sectionId: s
   const duplicateIds = elements.map((element) => parsedAttribute(element, "id")).filter((id): id is string => id !== undefined).filter((id, index, all) => all.indexOf(id) !== index);
   const missingHeading = elements.some((element) => element.tagName === "h1") ? [] : ["Falta un titular principal <h1>"];
   const normalizedHtml = normalizeContent(html);
+  const visitorCopyFindings = publicCopyDisclosureFindings(parsedText(fragment));
   const leakedPlaceholders = [
     "REEMPLAZAR-CON-ID-DEL-PLAN",
     "REEMPLAZAR-CON-ID-REAL-DEL-SLOT",
@@ -232,7 +242,7 @@ function missingLandingElements(html: string, requirements: Array<{ sectionId: s
     .map((href) => href.slice(1))
     .filter((id) => !targetIds.has(id))
     .map((id) => `Enlace interno sin destino: #${id}`);
-  return [...missingSections, ...missingHeading, ...missingItems, ...inactivePrimaryCta, ...missingAlt, ...duplicateIds.map((id) => `ID HTML duplicado: ${id}`), ...brokenAnchors, ...seedPlaceholders];
+  return [...missingSections, ...missingHeading, ...missingItems, ...inactivePrimaryCta, ...missingAlt, ...duplicateIds.map((id) => `ID HTML duplicado: ${id}`), ...brokenAnchors, ...seedPlaceholders, ...visitorCopyFindings];
 }
 
 async function recordLandingQualityReview(input: {
@@ -255,6 +265,7 @@ async function recordLandingQualityReview(input: {
     imageAlt: !input.htmlQualityChecked ? "not-reached" : findingMatches(["Hay imágenes sin texto alternativo"]).length ? "failed" : "passed",
     uniqueIds: !input.htmlQualityChecked ? "not-reached" : findingMatches(["ID HTML duplicado:"]).length ? "failed" : "passed",
     seedPlaceholders: !input.htmlQualityChecked ? "not-reached" : findingMatches(["REEMPLAZAR-CON-", "Copy de muestra sin adaptar:"]).length ? "failed" : "passed",
+    visitorFacingCopy: !input.htmlQualityChecked ? "not-reached" : findingMatches(["copy público"]).length ? "failed" : "passed",
   };
   await recordTraceStep(input.traceId, {
     eventType: "decision",

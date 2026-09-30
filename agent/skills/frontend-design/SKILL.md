@@ -2,13 +2,13 @@
 name: frontend-design
 description: Diseña landings completas con identidad visual, contenido fiel al brief y composición editorial deliberada.
 ---
-# Diseño frontend para landings · v1.0.0
+# Diseño frontend para landings · v2.0.0
 
 ## Objetivo
 Convertir el plan y su DesignDNA en una página original que parezca hecha para esta oferta. HTML es el medio de entrega; la dirección de arte debe venir del contenido, el público, el tono y las restricciones del brief. Esta skill complementa `combine`: aquí se concreta la composición, no se vuelve a decidir la estrategia ni se sustituye el plan.
 
 ## Orden de trabajo
-1. **Lee el encargo completo.** Extrae oferta, destinatario, acción, tono, hechos, referencias no verificadas, contenido obligatorio, cantidad, restricciones, `designDNA`, `designSystem`, `compositionRecipeIds`, secciones y slots. Conserva el plan como contrato editorial.
+1. **Lee el encargo completo y carga referencias en batch.** Extrae oferta, destinatario, acción, tono, hechos, referencias no verificadas, contenido obligatorio, cantidad, restricciones, `designDNA`, `designSystem`, `compositionRecipeIds`, secciones y slots. Conserva el plan como contrato editorial. Si `read_seed_reference` está disponible, carga `frontend-design`, `web-prototype-skill`, `web-prototype-layouts`, `web-prototype-checklist` y `system-prompt-excerpts` en una llamada. Si el plan incluye `seed-strings`, agrega `string-seed-of-thought` y `xpage-adaptation` a la misma llamada. Usa las referencias atribuidas de OpenDesign como material de consulta; no son plugins/tooling importado. No leas Totality como paleta por defecto.
 2. **Elige un gesto propio.** Formula en una frase la metáfora o lógica visual que nace de la oferta. Deriva de ella un recurso que puedas construir localmente: diagrama, escala tipográfica, numeración, recorte, marco, forma SVG o disposición de elementos. Si no hay identidad dada, preséntala como propuesta, no como marca existente.
 3. **Traduce DesignDNA a reglas.** Define roles de color, familia tipográfica disponible, jerarquía, anchos, ritmo, material, bordes y movimiento. El `designSystem` aporta gramática compositiva y `DesignDNA` decide los tokens finales. Mantén la misma lógica visual en hero, secciones, medios, navegación y CTA.
 4. **Asigna composición por tarea.** Para cada ID de sección anota el objetivo, la densidad y el gesto que mejor lo resuelve. Escoge entre 2 y 4 recetas disponibles cuando sean útiles. Alterna, por ejemplo, apertura tipográfica, explicación de lectura amplia, pieza numerada, inventario editorial, demostración visual y cierre; no conviertas cada variación en una tarjeta.
@@ -43,6 +43,8 @@ Una landing con suficiente material explica oferta, alcance, funcionamiento, dem
 - Conserva completas y literales las piezas de `explicitContentRequirements.requiredItems`. Puedes añadir numeración y etiquetas alrededor, pero no corregir ni abreviar la pieza.
 - No inventes precios, clientes, citas, datos, certificados, prestaciones, garantías o disponibilidad. Los ejercicios, trabalenguas, ejemplos y textos originales pedidos sí se redactan: son la entrega creativa, no una afirmación factual.
 - Todos los enlaces y botones anuncian el resultado que realmente tienen. CTA principal con clase `cta`, enlace externo aportado o ancla real; no uses `href="#"`.
+- El copy de visitante explica directamente la oferta y el contenido disponible. Deja hipótesis, huecos, advertencias y decisiones de estilo en el plan/traza, no publiques frases como “el brief no concreta…”, “por definir”, “no representa una función” o “no se presentan ejemplos”. Escribe completas las piezas creativas que el brief pide; marca una muestra si hace falta para no implicar publicación/uso real.
+- Los slots de medios solo reciben assets reales tras una selección. Usa las consultas y criterios del plan como punto de partida para el buscador; no fabriques URL, autor, candidato o licencia. Vídeo procede solo del banco gratuito configurado, nunca de generación ficticia.
 
 ## Implementación y accesibilidad
 - Incluye cada `data-xpage-section="id"` exactamente en su elemento `<section>` correspondiente; conserva el orden del plan y no cambies los IDs.

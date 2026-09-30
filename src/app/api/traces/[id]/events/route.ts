@@ -37,11 +37,7 @@ const eventSchema = z.discriminatedUnion("type", [
     techniqueIds: z.array(techniqueIdSchema).min(1).max(8),
     prompt: z.string().trim().min(1).max(12_000),
   }),
-]).superRefine((event, ctx) => {
-  if (event.type === "method-contribution-edit" && event.techniqueId !== "seed-strings" && event.artifact.length > 3000) {
-    ctx.addIssue({ code: "custom", message: "El artefacto de este método no puede superar 3000 caracteres.", path: ["artifact"] });
-  }
-});
+]);
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;

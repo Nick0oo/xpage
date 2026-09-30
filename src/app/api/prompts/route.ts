@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTechnique } from "@/lib/techniques";
 import { promptRequestSchema, type PromptRequest } from "@/lib/schemas";
-import { designPlanSchema, techniqueContributionSchema, validateTechniqueCoverage, enumerableContentFindings, requestedEnumerableContent } from "@/lib/design-plan";
+import { designPlanSchema, techniqueContributionSchema, validateTechniqueCoverage, enumerableContentFindings, newPlanMediaFindings, publicPlanCopyFindings, requestedEnumerableContent } from "@/lib/design-plan";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { creativeDirectionsResponseSchema } from "@/lib/creative-directions";
 import { selectDesignSystem, designSystems } from "@/lib/design-systems/catalog";
@@ -21,6 +21,9 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data;
+  if (input.brief.designSystemId && !designSystems.some(({ id }) => id === input.brief.designSystemId)) {
+    return NextResponse.json({ error: "El sistema elegido no pertenece al catálogo XPage.", code: "invalid_design_system" }, { status: 400 });
+  }
   if (input.mode === "directions") return generateCreativeDirections(input);
   if (input.mode === "technique") return generateTechniqueContribution(input);
 
@@ -37,6 +40,7 @@ export async function POST(request: Request) {
   const briefText = [
     `Tema o industria: ${input.brief.topic}`,
     `Producto y beneficio: ${input.brief.offer}`,
+    `Sistema visual elegido: ${selectedSystem.recipe.name} (${selectedSystem.recipe.id}). ${selectedSystem.reason}`,
     `P\u00fablico: ${input.brief.audience}`,
     `Tono o direcci\u00f3n visual: ${input.brief.tone}`,
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
@@ -55,7 +59,7 @@ ${formatCompositionOptions(8)}
 La paleta y el motivo finales se derivan de DesignDNA y el brief; el sistema propone gramática, no una piel rígida.`;
   const message = `Combina con criterio estos m\u00e9todos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.
 
-Carga cada skill nombrada con load_skill y ejecuta sus procedimientos completos: ${skillNames.join(", ")}. Para frontend-design y combine, lee todas sus secciones y referencias aplicables; trata las skills de método como pasos que debes ejecutar, no como etiquetas.
+Carga cada skill nombrada con load_skill y ejecuta sus procedimientos completos: ${skillNames.join(", ")}. Para frontend-design y combine, lee todas sus secciones y referencias aplicables; trata las skills de método como pasos que debes ejecutar, no como etiquetas. Carga las referencias locales de OpenDesign en una sola llamada batch para esta fase, sin repetir el mismo catálogo para cada método.
 
 APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensi\u00f3n, resu\u00e9lvela seg\u00fan hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisi\u00f3n en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
 ${JSON.stringify(input.methodContributions, null, 2)}
@@ -69,7 +73,11 @@ En explicitContentRequirements, registra cada entregable de contenido que el usu
 
 No reduzcas la landing a tres bloques por defecto. Diseña un recorrido completo acorde a la información disponible: con material suficiente, suele tener 5–7 secciones sustantivas (oferta, detalle, ejemplos o entrega, cómo funciona, dudas relevantes y cierre), cada una con objetivo, copy desarrollado y aporte distinto. Evita secciones de relleno y testimonios o pruebas que no estén en el brief. Si la información es limitada, usa menos y explica con claridad, no inventes profundidad.
 
+COPY PÚBLICO: hipótesis, incógnitas y decisiones de diseño van en plan/traza, no en la landing. No escribas “el brief no concreta…”, “por definir”, “no representa una función…” ni “no se presentan ejemplos”. Explica directamente la oferta, su alcance respaldado y cómo avanzar. Sí redacta completo el contenido creativo original solicitado, marcado como muestra si pudiera confundirse con experiencia real.
+
 CTA: usa el destino externo si el brief lo proporciona. Si no, elige un enlace interno que conduzca a una sección o contenido real de esta landing; nunca propongas un botón deshabilitado ni una acción ficticia. Refleja ese destino en la sección final y en el prompt.
+
+SLOTS DE MEDIOS: por cada slot incluye `searchQueries` (1–3 consultas iniciales) y `selectionCriteria` para el workspace de búsqueda real; asócialo a `mediaSlotIds` de una sección. No inventes candidatos, autor, URL ni licencia. Video solo de stock gratuito disponible, con `poster`, controles manuales sin sonido/autoplay y `reducedMotion` completo. Copia estos campos en el prompt editable para que la búsqueda/selección posterior los reutilice.
 
 Brief (fuente de hechos):
 ${briefText}
@@ -96,18 +104,18 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\
     if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
       throw new Error("Eve devolvi\u00f3 un DesignPlan incompleto o no cubre los m\u00e9todos seleccionados.");
     }
-    let contentFindings = enumerableContentFindings(plan.data, input.brief.offer);
+    let contentFindings = [...enumerableContentFindings(plan.data, input.brief.offer), ...publicPlanCopyFindings(plan.data), ...newPlanMediaFindings(plan.data)];
     if (contentFindings.length) {
       const repair = await runEveStructured({
         modelChoice: input.modelChoice,
         outputSchema: designPlanSchema,
-        message: `${message}\n\nREPARACIÓN OBLIGATORIA DEL PLAN. El analizador detectó ${enumerableRequest?.count} ${enumerableRequest?.noun}. El plan anterior está incompleto: ${contentFindings.join(" ")} Devuelve el DesignPlan completo corregido. Redacta cada pieza original completa, enumérala en explicitContentRequirements.requiredItems y copia todas las piezas completas en el copy de su sección y en prompt. No excedas el límite ni reemplaces piezas por una promesa. Conserva las decisiones restantes.\n\nPLAN ANTERIOR\n${JSON.stringify(plan.data)}`,
+        message: `${message}\n\nREPARACIÓN OBLIGATORIA DEL PLAN. El contrato encontró omisiones de inventario, notas de proceso en el copy público o slots incompletos: ${contentFindings.join(" ")} Devuelve el DesignPlan completo corregido. Redacta cada pieza original pedida completa, enumérala en explicitContentRequirements.requiredItems y copia todas las piezas en el copy de su sección y en prompt. Completa cada slot nuevo con queries/criterios de búsqueda reales, ID de sección y, si es video, poster/alternativa estática. Elimina del texto visible notas sobre el brief, datos pendientes o razones internas; conserva esos hechos solo en campos de método/plan/traza y explica al público el valor confirmado. No excedas el límite ni reemplaces piezas por una promesa. Conserva las decisiones restantes.\n\nPLAN ANTERIOR\n${JSON.stringify(plan.data)}`,
       });
       plan = designPlanSchema.safeParse(repair.data);
       if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
         throw new Error("La reparación del plan no conservó el esquema o la cobertura de métodos.");
       }
-      contentFindings = enumerableContentFindings(plan.data, input.brief.offer);
+      contentFindings = [...enumerableContentFindings(plan.data, input.brief.offer), ...publicPlanCopyFindings(plan.data), ...newPlanMediaFindings(plan.data)];
       if (contentFindings.length) throw new Error(`Plan incompleto: ${contentFindings.join(" ")}`);
     }
     const recipeIds = plan.data.designSystem?.compositionRecipeIds.filter((id) => compositionOptions.some((recipe) => recipe.id === id)) ?? [];
@@ -236,7 +244,9 @@ async function generateCreativeDirections(input: Extract<PromptRequest, { mode: 
   const selected = input.techniqueIds.map(getTechnique);
   const enumerableRequest = requestedEnumerableContent(input.brief.offer);
   const briefTextForSystems = `${input.brief.topic} ${input.brief.offer} ${input.brief.audience} ${input.brief.tone} ${input.brief.objective}`.toLocaleLowerCase("es");
-  const systemCandidates = [...designSystems].map((recipe) => ({
+  const systemCandidates = input.brief.designSystemId
+    ? [selectDesignSystem(input.brief).recipe]
+    : [...designSystems].map((recipe) => ({
     recipe,
     score: recipe.keywords.reduce((score, keyword) => score + (briefTextForSystems.includes(keyword) ? 1 : 0), 0),
   })).sort((a, b) => b.score - a.score).slice(0, 5).map(({ recipe }) => recipe);
@@ -248,6 +258,7 @@ async function generateCreativeDirections(input: Extract<PromptRequest, { mode: 
     `Oferta: ${input.brief.offer}`,
     `Público: ${input.brief.audience}`,
     `Tono: ${input.brief.tone}`,
+    `Sistema elegido: ${input.brief.designSystemId ?? "automático según brief"}`,
     `CTA: ${input.brief.cta || "proponer una acción coherente"}`,
     `Marca o logo descrito: ${input.brief.brand || "no proporcionado"}`,
     `Paleta preferida: ${input.brief.palette || "sin preferencia; proponer con roles y valores"}`,
@@ -258,9 +269,9 @@ async function generateCreativeDirections(input: Extract<PromptRequest, { mode: 
   ].join("\n");
   const message = `Antes de escribir código, genera 2 o 3 direcciones creativas realmente distintas para el mismo brief y métodos seleccionados. Haz una sola respuesta estructurada con una dirección y un DesignPlan completo por alternativa. No hagas una secuencia de llamadas ni copies la misma composición cambiando solo colores.
 
-Carga cada skill nombrada con load_skill y aplica sus procedimientos completos: ${skillNames.join(", ")}. Cada DesignPlan debe cubrir exactamente todos los métodos elegidos; los aportes deben estar presentes también en cada alternativa.
+Carga cada skill nombrada con load_skill y aplica sus procedimientos completos: ${skillNames.join(", ")}. Carga referencias OpenDesign en una sola llamada batch para esta fase. Cada DesignPlan debe cubrir exactamente todos los métodos elegidos; los aportes deben estar presentes también en cada alternativa. Mantén hipótesis y notas internas en el plan/traza, no en el copy público. Redacta las piezas creativas originales pedidas y no las presentes como historial real.
 
-Direction picker de XPage: ofrece una selección corta de sistemas afines al brief, no un catálogo enorme. Asigna un sistema distinto a cada dirección y deriva su paleta/motivo de DesignDNA. Gramáticas:
+Direction picker de XPage: ${input.brief.designSystemId ? "la persona ya eligió un sistema; conserva ese mismo ID en todas las direcciones y explora diferencias de composición dentro de su gramática" : "ofrece una selección corta de sistemas afines al brief, no un catálogo enorme; asigna un sistema distinto a cada dirección"}. Deriva paleta/motivo de DesignDNA. Gramáticas:
 ${systemCandidates.map(({ id, name, visualGrammar, type, colorLogic, avoid }) => `- ${id} · ${name}: ${visualGrammar} Tipografía: ${type} Color: ${colorLogic} Evitar: ${avoid.join("; ")}`).join("\n")}
 Composiciones candidatas: ${compositionOptions.map(({ id, name, pattern, antiPattern }) => `- ${id} (${name}): ${pattern} Control: ${antiPattern}`).join("\n")}
 Incluye designSystem en cada DesignPlan con id, nombre, rationale y compositionRecipeIds. Cada alternativa debe cambiar al menos dos rasgos estructurales (hero, orden, ritmo, escala/densidad o modo de demostración), nunca solo color.
@@ -285,17 +296,25 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
     });
     let parsed = creativeDirectionsResponseSchema.safeParse(data);
     if (parsed.success) {
-      const contentFindings = parsed.data.directions.flatMap((direction) => enumerableContentFindings(direction.designPlan, input.brief.offer));
+      const contentFindings = parsed.data.directions.flatMap((direction) => [
+        ...enumerableContentFindings(direction.designPlan, input.brief.offer),
+        ...publicPlanCopyFindings(direction.designPlan),
+        ...newPlanMediaFindings(direction.designPlan),
+      ]);
       if (contentFindings.length) {
         const repair = await runEveStructured({
           modelChoice: input.modelChoice,
           outputSchema: creativeDirectionsResponseSchema,
-          message: `${message}\n\nREPARACIÓN OBLIGATORIA: cada dirección debe contener ${enumerableRequest?.count} ${enumerableRequest?.noun} originales completos dentro de explicitContentRequirements y reflejados palabra por palabra en sections.copy y prompt. Fallos detectados: ${contentFindings.join(" ")} Revisa todas las alternativas y devuelve el objeto completo corregido. Conserva sus diferencias visuales y decisiones válidas.\n\nRESPUESTA ANTERIOR\n${JSON.stringify(parsed.data)}`,
+          message: `${message}\n\nREPARACIÓN OBLIGATORIA: fallos de contenido, copy público o slots de medios: ${contentFindings.join(" ")} Cada dirección debe incluir el inventario original completo en explicitContentRequirements, copy y prompt; quitar notas internas del copy público; y completar searchQueries/selectionCriteria, referencias de slot y poster/alternativa si hay video. ${input.brief.designSystemId ? `Conserva el sistema elegido ${input.brief.designSystemId} en todas las direcciones.` : "Conserva sistemas y diferencias estructurales válidas."} Devuelve el objeto completo reparado.\n\nRESPUESTA ANTERIOR\n${JSON.stringify(parsed.data)}`,
         });
         data = repair.data;
         parsed = creativeDirectionsResponseSchema.safeParse(data);
         if (!parsed.success) throw new Error("La reparación de direcciones no conservó el esquema.");
-        const remaining = parsed.data.directions.flatMap((direction) => enumerableContentFindings(direction.designPlan, input.brief.offer));
+        const remaining = parsed.data.directions.flatMap((direction) => [
+          ...enumerableContentFindings(direction.designPlan, input.brief.offer),
+          ...publicPlanCopyFindings(direction.designPlan),
+          ...newPlanMediaFindings(direction.designPlan),
+        ]);
         if (remaining.length) throw new Error(`Planes de dirección incompletos: ${remaining.join(" ")}`);
       }
     }
@@ -321,16 +340,19 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
     const usedSystemIds = new Set<string>();
     const directions = parsed.data.directions.map((direction, index) => {
       const proposed = direction.designPlan.designSystem;
-      let selected = proposed ? systemCandidates.find(({ id }) => id === proposed.id) : undefined;
-      if (!selected || usedSystemIds.has(selected.id)) {
+      let selected = input.brief.designSystemId
+        ? systemCandidates[0]
+        : proposed ? systemCandidates.find(({ id }) => id === proposed.id) : undefined;
+      if (!selected || (!input.brief.designSystemId && usedSystemIds.has(selected.id))) {
         selected = systemCandidates.find(({ id }) => !usedSystemIds.has(id)) ?? systemCandidates[index % systemCandidates.length];
       }
       usedSystemIds.add(selected.id);
       const recipeIds = proposed?.compositionRecipeIds.filter((id) => compositionOptions.some((recipe) => recipe.id === id)) ?? [];
+      const selectedSystem = input.brief.designSystemId ? selectDesignSystem(input.brief) : undefined;
       const finalDesignSystem = {
         id: selected.id,
         name: selected.name,
-        rationale: proposed?.rationale || `Sistema seleccionado por XPage según afinidad con el brief: ${selected.name}.`,
+        rationale: input.brief.designSystemId ? selectedSystem!.reason : proposed?.rationale || `Sistema seleccionado por XPage según afinidad con el brief: ${selected.name}.`,
         compositionRecipeIds: recipeIds.length ? recipeIds : compositionOptions.slice(index, index + 2).map(({ id }) => id),
       };
       return {

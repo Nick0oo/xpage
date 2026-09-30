@@ -12,15 +12,18 @@ export const openDesignReferences = [
   { id: "xpage-adaptation", title: "XPage adaptation notes", sourcePath: "XPage-authored adaptation notes based on the included bundle", fileName: "XPAGE-ADAPTATION.md", use: "Límites de atribución y adaptación local al contrato de XPage.", sourceUrl: "", license: "XPage-authored", sourceKind: "local adaptation" },
 ] as const;
 
+export const localReferenceCatalog = [
+  ...openDesignReferences,
+  { id: "string-seed-of-thought", title: "String Seed of Thought · XPage research note", sourcePath: "agent/skills/seed-strings/REFERENCE.md", fileName: "REFERENCE.md", use: "Alcance experimental de la inspiración de prompting usada por seed-strings y límites de la adaptación.", sourceUrl: "", license: "XPage-authored research note", sourceKind: "local research note" },
+] as const;
+
 export const OPEN_DESIGN_REFERENCE_IDS = openDesignReferences.map(({ id }) => id) as readonly (typeof openDesignReferences)[number]["id"][];
 export type OpenDesignReferenceId = (typeof openDesignReferences)[number]["id"] | "string-seed-of-thought";
 
 const referenceDirectory = path.resolve(process.cwd(), "agent", "skills", "seed-strings", "references", "open-design");
 
 export async function readLocalReference(reference: OpenDesignReferenceId) {
-  const fileName = reference === "string-seed-of-thought"
-    ? "REFERENCE.md"
-    : openDesignReferences.find((entry) => entry.id === reference)?.fileName;
+  const fileName = localReferenceCatalog.find((entry) => entry.id === reference)?.fileName;
   if (!fileName) throw new Error("Referencia local fuera del catálogo.");
   const filePath = reference === "string-seed-of-thought"
     ? path.resolve(process.cwd(), "agent", "skills", "seed-strings", fileName)

@@ -94,14 +94,20 @@ export const designSystems: readonly DesignSystemRecipe[] = [
 export type DesignSystemSelection = { recipe: DesignSystemRecipe; reason: string; score: number };
 
 /** Select one coherent starting grammar from actual brief language. */
-export function selectDesignSystem(brief: { topic: string; offer: string; audience: string; tone: string; objective?: string; references?: string }): DesignSystemSelection {
+export function selectDesignSystem(brief: { topic: string; offer: string; audience: string; tone: string; objective?: string; references?: string; designSystemId?: string }, explicitId = brief.designSystemId): DesignSystemSelection {
+  const explicitlySelected = explicitId ? designSystems.find(({ id }) => id === explicitId) : undefined;
+  if (explicitId && !explicitlySelected) throw new Error(`El sistema de diseño “${explicitId}” no existe en el catálogo XPage.`);
   const text = [brief.topic, brief.offer, brief.audience, brief.tone, brief.objective, brief.references].filter(Boolean).join(" ").toLocaleLowerCase("es");
   const ranked = designSystems.map((recipe) => ({
     recipe,
     score: recipe.keywords.reduce((score, keyword) => score + (text.includes(keyword) ? (keyword.includes(" ") ? 3 : 1) : 0), 0),
   })).sort((a, b) => b.score - a.score);
-  const chosen = ranked[0].score > 0 ? ranked[0] : { recipe: designSystems.find(({ id }) => id === "service-concierge")!, score: 0 };
-  const reason = chosen.score > 0
+  const chosen = explicitlySelected
+    ? { recipe: explicitlySelected, score: ranked.find(({ recipe }) => recipe.id === explicitId)?.score ?? 0 }
+    : ranked[0].score > 0 ? ranked[0] : { recipe: designSystems.find(({ id }) => id === "service-concierge")!, score: 0 };
+  const reason = explicitlySelected
+    ? `La persona eligió ${chosen.recipe.name}; se conserva su gramática y se adapta al brief, la marca y la accesibilidad.`
+    : chosen.score > 0
     ? `Se elige ${chosen.recipe.name} porque el brief contiene señales afines a ${chosen.recipe.bestFor}.`
     : `No hay señales suficientes para imponer una estética sectorial; se propone ${chosen.recipe.name} como punto de partida flexible y se deriva su motivo y paleta de la oferta.`;
   return { ...chosen, reason };

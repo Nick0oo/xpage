@@ -24,4 +24,4 @@ Research snapshot: `nexu-io/open-design` commit `5b19dfa4351b3eed33826ee72746a7c
 
 ## Runtime boundary
 
-These files are authored reference material, not installed skills, plugins, tools, or a promise that OpenDesign runtime behavior exists in XPage. Eve's `load_skill` returns the named bundled skill markdown; it does not recursively expose this directory. A caller that needs a reference must explicitly read it, or an implementer must incorporate the relevant instructions into the loaded skill. `XPAGE-ADAPTATION.md` records the local application boundary and XPage-specific adjustments.
+These files are authored reference material, not installed skills, plugins, tools, or a promise that OpenDesign runtime behavior exists in XPage. Eve's `load_skill` returns the named bundled skill markdown; it does not recursively expose this directory. Method skills may explicitly call XPage's `read_seed_reference` tool to read allowlisted files; the tool reads local copies and does not invoke OpenDesign. `XPAGE-ADAPTATION.md` records the local application boundary and XPage-specific adjustments.
