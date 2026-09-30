@@ -4,6 +4,8 @@ import { promptRequestSchema, type PromptRequest } from "@/lib/schemas";
 import { designPlanSchema, techniqueContributionSchema, validateTechniqueCoverage } from "@/lib/design-plan";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { creativeDirectionsResponseSchema } from "@/lib/creative-directions";
+import { selectDesignSystem, designSystems } from "@/lib/design-systems/catalog";
+import { selectCompositionOptions, formatCompositionOptions } from "@/lib/design-templates/compositions";
 import {
   recordTraceStep,
   setGenerationTraceStatus,
@@ -28,6 +30,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Los aportes recibidos no corresponden exactamente a los m\u00e9todos seleccionados.", code: "invalid_contributions" }, { status: 400 });
   }
   const techniques = techniqueIds.map(getTechnique);
+  const selectedSystem = selectDesignSystem(input.brief);
+  const compositionOptions = selectCompositionOptions(input.brief, 5);
   const briefText = [
     `Tema o industria: ${input.brief.topic}`,
     `Producto y beneficio: ${input.brief.offer}`,
@@ -36,12 +40,25 @@ export async function POST(request: Request) {
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
   ].join("\n");
   const skillNames = [...techniques.map(({ id }) => id), "combine"];
+  const designSystemContext = `SISTEMA VISUAL XPage DERIVADO DEL BRIEF: ${selectedSystem.recipe.id} · ${selectedSystem.recipe.name}. ${selectedSystem.reason}
+Mejor para: ${selectedSystem.recipe.bestFor}
+Gramática: ${selectedSystem.recipe.visualGrammar}
+Tipografía: ${selectedSystem.recipe.type}
+Lógica de color: ${selectedSystem.recipe.colorLogic}
+Material: ${selectedSystem.recipe.material}
+Movimiento: ${selectedSystem.recipe.motion}
+Evitar: ${selectedSystem.recipe.avoid.join("; ")}
+Opciones compositivas (elige 2–4 y adáptalas, no repitas un esqueleto):
+${formatCompositionOptions(8)}
+La paleta y el motivo finales se derivan de DesignDNA y el brief; el sistema propone gramática, no una piel rígida.`;
   const message = `Combina con criterio estos m\u00e9todos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.
 
 Carga y sigue estas skills de Eve: ${skillNames.join(", ")}. Trata sus instrucciones como procedimientos que debes ejecutar, no como etiquetas.
 
 APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensi\u00f3n, resu\u00e9lvela seg\u00fan hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisi\u00f3n en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
 ${JSON.stringify(input.methodContributions, null, 2)}
+
+${designSystemContext}
 
 Devuelve un DesignPlan completo seg\u00fan el esquema. Trabaja primero una propuesta completa, eval\u00fala y revisa el resultado antes de responder. Si el m\u00e9todo creator-critic est\u00e1 seleccionado, rellena su propuesta, hallazgos y revisi\u00f3n expl\u00edcitos. Describe decisiones observables, nunca razonamiento privado.
 
@@ -57,6 +74,7 @@ Brief completo y controles elegidos:
 ${JSON.stringify(input.brief)}
 
 IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribuci\u00f3n debe identificar la t\u00e9cnica, versi\u00f3n de skill, decisi\u00f3n concreta, artefacto visible y estado. Registra tensiones reales y su resoluci\u00f3n. La cobertura de contribuciones debe coincidir exactamente con los m\u00e9todos seleccionados.
+Incluye designSystem en DesignPlan con id, nombre, rationale y compositionRecipeIds. Usa el sistema elegido y selecciona recetas que estructuren de verdad el recorrido. Cada sección debe variar gesto, escala, alineación o densidad por función, no solo color. El HTML local de referencia puede orientar la riqueza compositiva, SVG propio e interacción útil; no reutilices su texto ni su tema.
 
 REQUISITOS EXPL\u00cdCITOS DE CONTENIDO: detecta entregables comprobables del brief (por ejemplo, una cantidad de ejercicios, preguntas, pasos, recetas o elementos). Para cada uno completa explicitContentRequirements con el requisito, la secci\u00f3n destino, targetCount si el usuario pide una cantidad concreta y requiredItems con textos espec\u00edficos que deben aparecer. Si se piden cinco ejercicios o la oferta propone hasta cinco ejercicios para practicar, produce cinco ejercicios originales y útiles; no basta con mencionar la cifra en un titular. Respeta límites y nunca excedas el máximo. No conviertas supuestos en requisitos ni inventes hechos sobre el producto; crear ejercicios, ejemplos o recetas originales que el usuario pidió no es inventar un claim. Incluye cada requiredItem en el copy y prompt final de su secci\u00f3n. Si no hay entregable cuantificable/enumerable, devuelve una lista vacía.
 
@@ -74,6 +92,18 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\
     if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
       throw new Error("Eve devolvi\u00f3 un DesignPlan incompleto o no cubre los m\u00e9todos seleccionados.");
     }
+    const recipeIds = plan.data.designSystem?.compositionRecipeIds.filter((id) => compositionOptions.some((recipe) => recipe.id === id)) ?? [];
+    const finalDesignSystem = {
+      id: selectedSystem.recipe.id,
+      name: selectedSystem.recipe.name,
+      rationale: selectedSystem.reason,
+      compositionRecipeIds: recipeIds.length ? recipeIds.slice(0, 4) : compositionOptions.slice(0, 3).map(({ id }) => id),
+    };
+    const finalPlan = {
+      ...plan.data,
+      designSystem: finalDesignSystem,
+      prompt: ensureSystemInPrompt(plan.data.prompt, finalDesignSystem),
+    };
 
     await recordTraceStep(input.traceId, {
       eventType: "decision",
@@ -83,19 +113,19 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\
       provider: "eve-local",
       model: input.modelChoice,
       userPrompt: message,
-      outputText: plan.data.prompt,
-      output: plan.data,
-      skillVersions: Object.fromEntries(plan.data.contributions.map(({ techniqueId, skillVersion }) => [techniqueId, skillVersion])),
-      decisionSummary: plan.data.contributions.map(({ techniqueId, decision, status, resolution }) => `${techniqueId} (${status}): ${decision}${resolution ? ` \u00b7 Resoluci\u00f3n: ${resolution}` : ""}`).join("\n"),
+      outputText: finalPlan.prompt,
+      output: finalPlan,
+      skillVersions: Object.fromEntries(finalPlan.contributions.map(({ techniqueId, skillVersion }) => [techniqueId, skillVersion])),
+      decisionSummary: `Sistema: ${finalPlan.designSystem.name} · ${finalPlan.designSystem.rationale}\n` + finalPlan.contributions.map(({ techniqueId, decision, status, resolution }) => `${techniqueId} (${status}): ${decision}${resolution ? ` \u00b7 Resoluci\u00f3n: ${resolution}` : ""}`).join("\n"),
       references: [{ kind: "source", id: "brief", label: "Brief aportado", sourceType: "brief" }],
       durationMs: Date.now() - startedAt,
     });
     await updateTraceStatus(input.traceId, "prompt-ready");
     return NextResponse.json({
-      prompt: plan.data.prompt,
+      prompt: finalPlan.prompt,
       techniqueIds,
       traceId: input.traceId,
-      designPlan: plan.data,
+      designPlan: finalPlan,
       generationMode: "eve-design-plan",
       modelChoice: input.modelChoice,
     });
@@ -179,6 +209,12 @@ Devuelve solo los campos del esquema TechniqueContribution. Usa techniqueId=${te
 
 async function generateCreativeDirections(input: Extract<PromptRequest, { mode: "directions" }>) {
   const selected = input.techniqueIds.map(getTechnique);
+  const briefTextForSystems = `${input.brief.topic} ${input.brief.offer} ${input.brief.audience} ${input.brief.tone} ${input.brief.objective}`.toLocaleLowerCase("es");
+  const systemCandidates = [...designSystems].map((recipe) => ({
+    recipe,
+    score: recipe.keywords.reduce((score, keyword) => score + (briefTextForSystems.includes(keyword) ? 1 : 0), 0),
+  })).sort((a, b) => b.score - a.score).slice(0, 5).map(({ recipe }) => recipe);
+  const compositionOptions = selectCompositionOptions(input.brief, 8);
   const skillNames: string[] = selected.map(({ id }) => id);
   if (selected.length > 1) skillNames.push("combine");
   const briefText = [
@@ -197,6 +233,11 @@ async function generateCreativeDirections(input: Extract<PromptRequest, { mode: 
   const message = `Antes de escribir código, genera 2 o 3 direcciones creativas realmente distintas para el mismo brief y métodos seleccionados. Haz una sola respuesta estructurada con una dirección y un DesignPlan completo por alternativa. No hagas una secuencia de llamadas ni copies la misma composición cambiando solo colores.
 
 Carga y aplica estas skills de Eve: ${skillNames.join(", ")}. Cada DesignPlan debe cubrir exactamente todos los métodos elegidos; los aportes deben estar presentes también en cada alternativa.
+
+Direction picker de XPage: ofrece una selección corta de sistemas afines al brief, no un catálogo enorme. Asigna un sistema distinto a cada dirección y deriva su paleta/motivo de DesignDNA. Gramáticas:
+${systemCandidates.map(({ id, name, visualGrammar, type, colorLogic, avoid }) => `- ${id} · ${name}: ${visualGrammar} Tipografía: ${type} Color: ${colorLogic} Evitar: ${avoid.join("; ")}`).join("\n")}
+Composiciones candidatas: ${compositionOptions.map(({ id, name, pattern, antiPattern }) => `- ${id} (${name}): ${pattern} Control: ${antiPattern}`).join("\n")}
+Incluye designSystem en cada DesignPlan con id, nombre, rationale y compositionRecipeIds. Cada alternativa debe cambiar al menos dos rasgos estructurales (hero, orden, ritmo, escala/densidad o modo de demostración), nunca solo color.
 
 Para cada dirección define primera pantalla/hero, narrativa y ritmo de secciones, paleta por roles, tipografía disponible, motivo visual, uso de imagen/video (solo especificación), razón breve ligada al brief y al menos dos diferencias estructurales observables respecto de otra opción. Usa opciones contrastantes: por ejemplo, editorial asimétrica frente a demostración modular o narrativa de caso frente a recorrido de producto, solo si encaja con este brief. La elección de variedad controla cuánto divergen; no conviertas movimiento en animación automática. Respeta movimiento reducido y densidad elegida.
 
@@ -235,7 +276,30 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
       throw new Error("La validación rechazó las alternativas: repiten id, título o hero, omiten DesignPlan/creativeSettings, no reflejan los controles del brief o no cubren los métodos.");
     }
 
-    const directions = parsed.data.directions;
+    const usedSystemIds = new Set<string>();
+    const directions = parsed.data.directions.map((direction, index) => {
+      const proposed = direction.designPlan.designSystem;
+      let selected = proposed ? systemCandidates.find(({ id }) => id === proposed.id) : undefined;
+      if (!selected || usedSystemIds.has(selected.id)) {
+        selected = systemCandidates.find(({ id }) => !usedSystemIds.has(id)) ?? systemCandidates[index % systemCandidates.length];
+      }
+      usedSystemIds.add(selected.id);
+      const recipeIds = proposed?.compositionRecipeIds.filter((id) => compositionOptions.some((recipe) => recipe.id === id)) ?? [];
+      const finalDesignSystem = {
+        id: selected.id,
+        name: selected.name,
+        rationale: proposed?.rationale || `Sistema seleccionado por XPage según afinidad con el brief: ${selected.name}.`,
+        compositionRecipeIds: recipeIds.length ? recipeIds : compositionOptions.slice(index, index + 2).map(({ id }) => id),
+      };
+      return {
+        ...direction,
+        designPlan: {
+          ...direction.designPlan,
+          designSystem: finalDesignSystem,
+          prompt: ensureSystemInPrompt(direction.designPlan.prompt, finalDesignSystem),
+        },
+      };
+    });
     await recordTraceStep(input.traceId, {
       eventType: "decision",
       phase: "creative-direction-options",
@@ -246,7 +310,7 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
       userPrompt: message,
       outputText: directions.map(({ title, rationale, structuralDifference }) => `${title}: ${rationale} · ${structuralDifference.join("; ")}`).join("\n"),
       output: { directions },
-      decisionSummary: `Propuestas: ${directions.map(({ title }) => title).join(" · ")}`,
+      decisionSummary: `Propuestas: ${directions.map(({ title }) => title).join(" · ")}\nSistemas: ${directions.map(({ designPlan }) => designPlan.designSystem?.name).join(" · ")}`,
       references: [{ kind: "source", id: "brief", label: "Brief creativo", sourceType: "brief" }],
       durationMs: Date.now() - startedAt,
     });
@@ -291,4 +355,10 @@ function safeFailureMessage(error: unknown) {
     .replace(/Bearer\s+\S+/gi, "Bearer [redactado]")
     .replace(/\bsk-[A-Za-z0-9_-]{8,}\b/g, "[credencial redactada]")
     .slice(0, 300);
+}
+
+function ensureSystemInPrompt(prompt: string, system: { id: string; name: string; rationale: string; compositionRecipeIds: string[] }) {
+  if (prompt.includes(system.id) && system.compositionRecipeIds.every((id) => prompt.includes(id))) return prompt;
+  const directive = `\n\nDirección visual XPage: sistema ${system.id} (${system.name}). ${system.rationale} Composiciones seleccionadas: ${system.compositionRecipeIds.join(", ")}. Deriva los tokens visuales de DesignDNA y adapta la composición a cada sección.`;
+  return prompt.length + directive.length <= 12_000 ? `${prompt}${directive}` : prompt;
 }

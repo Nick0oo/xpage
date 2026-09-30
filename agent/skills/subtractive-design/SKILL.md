@@ -19,3 +19,12 @@ Registra eliminaciones concretas y su razón en `discardedElements`; documenta e
 
 ## Ejemplo
 Retira una fila de logos sin respaldo; conserva una explicación breve del proceso que sí está descrito.
+
+## Auditoría de densidad
+Para cada bloque pregunta: ¿qué decisión o comprensión permite?, ¿repite otro bloque?, ¿lleva la evidencia más cerca del claim?, ¿es contenido requerido? Retira repetición si la página sigue completa. Conserva ejemplos, alcance y objeciones útiles aunque la página quede más larga.
+
+## Simplificación visual
+Retira adornos que compitan con titulares, bordes y sombras repetidos, badges vacíos y módulos sin diferencia funcional. No retires un motivo visual que conecta capítulos ni una orientación que ayuda a navegar. Sustituye el patrón, no solo lo borres, cuando una sección pierda estructura.
+
+## Entrega
+En `discardedElements` registra lo quitado y la razón concreta. Revisa el flujo antes/después para asegurar que la transición entre secciones todavía explica oferta, ejemplos y acción. “Menos es más” no cuenta como razón.

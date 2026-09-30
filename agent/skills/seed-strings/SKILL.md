@@ -20,3 +20,14 @@ Completa `designDNA` (`brandMotif`, `palette`, `typography`, `composition`, `inv
 
 ## Ejemplo
 Panadería de masa madre: motivo de cuaderno de fermentación, tinta carbón y crema, composición editorial con notas laterales; invariantes: textura sutil y fechas solo si constan en el brief.
+
+## Ficha de decisión extendida
+- **Fuente:** indica qué frase del brief sostiene identidad, oferta y audiencia. Si no hay marca, llama a la dirección una propuesta creativa.
+- **Motivo:** expresa el concepto en una frase y tradúcelo a una forma concreta que pueda repetirse con variación (trama, corte, diagrama, marco, numeración, gesto tipográfico).
+- **Tokens por rol:** usa `fondo`, `superficie`, `texto`, `texto secundario`, `acento`, `borde` y `foco` cuando apliquen. Los valores pueden ser descriptivos o hex; comprueba contraste antes de presentarlos como listos para producción.
+- **Tipo:** especifica stack local con fallback y una escala de titulares/cuerpo/nota. No solicites fuentes remotas.
+- **Composición:** define ancho de lectura, relación entre contenido e imagen, alineación del hero y cómo variará el ritmo entre secciones.
+- **Invariantes:** escribe 3–5 reglas observables con lugar y propósito; al menos una puede variar entre secciones sin romper parentesco.
+
+## Prueba de consistencia
+Simula el sistema en hero, detalle y cierre: cada parte debe parecer la misma identidad y seguir cumpliendo una tarea distinta. Si el motivo exige decoración constante, si el color dificulta lectura o si no puede explicarse su procedencia, simplifica. `designDNA` queda como fuente única; cualquier ajuste se hace allí y se comunica a las demás técnicas.

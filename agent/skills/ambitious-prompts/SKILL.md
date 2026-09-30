@@ -23,3 +23,11 @@ Registra hipótesis en `audienceHypotheses`, propósito en cada sección y aplic
 
 ## Ejemplo
 Hipótesis: “el público podría querer aprender a su ritmo y dudar del tiempo requerido”. No conviertas esto en una estadística.
+
+## Matriz de intención
+Para cada hipótesis registra señal del brief, necesidad, objeción y respuesta posible. No agregues demografía, contexto de uso o sensibilidad al precio si no aparece en los datos. Si no existe señal, usa una hipótesis general y mantén su peso bajo.
+
+Mapea la intención a la secuencia: captar → explicar → concretar → resolver dudas respaldadas → actuar. Se puede saltar una etapa si no corresponde; no se puede reemplazar contenido real por promesas de que habrá más información luego.
+
+## Auditoría del recorrido
+Lee solo los titulares en orden: deben formar un argumento entendible. Lee solo CTAs: deben indicar un paso real sin competir. Luego revisa que las secciones respondan motivaciones/objeciones sin repetirse. Registra necesidades como hipótesis, no como evidencia de conversión.
