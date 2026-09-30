@@ -19,3 +19,12 @@ Completa `creatorCritic.proposal`, `findings` y `revision` con resúmenes de res
 
 ## Ejemplo
 Hallazgo: el CTA principal aparece antes de explicar qué incluye la oferta; revisión: añade una sección breve de alcance antes del CTA.
+
+## Protocolo de crítica acotada
+Prioriza como máximo cinco problemas. Por hallazgo anota elemento localizado, criterio verificable, efecto y corrección. Ordena así: datos/entregables ausentes; acción falsa; barrera de lectura o acceso; inconsistencia de jerarquía; repetición estética. No listes preferencias personales como defectos.
+
+## Crítica del sistema visual
+Compara hero, sección más densa y cierre contra DesignDNA: ¿el motivo persiste?, ¿la composición cambia por función?, ¿el contraste separa contenido de decoración?, ¿hay un recurso remoto o una imagen que prometa una función no descrita? Propón el menor cambio capaz de corregir un problema real.
+
+## Evidencia
+Este método revisa el plan textual y las decisiones visibles descritas. Solo reporta inspección de captura/render, responsive real o medición si se ejecutó esa comprobación. No uses palabras como “convierte más” como resultado sin experimento.

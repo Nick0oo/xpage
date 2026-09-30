@@ -114,6 +114,7 @@ export default function Home() {
   const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
   const pendingPromptTraces = useRef(new Map<string, { prompt: string; promise: Promise<void> }>());
   const restoredLandingId = useRef<string | null>(null);
+  const mediaMenuRef = useRef<HTMLDetailsElement>(null);
   const skipWorkflowWrite = useRef(true);
 
   const busy = batchGenerating || combiningMethods || activeResultId !== null;
@@ -663,7 +664,7 @@ export default function Home() {
               <span className="hidden sm:inline">{studioActive ? "Ver landing" : "Activar Studio · Editar"}</span>
               <span className="sm:hidden">{studioActive ? "Vista" : "Editar"}</span>
             </Button>
-            <details className="relative">
+            <details ref={mediaMenuRef} className="relative">
               <summary
                 aria-label="Opciones de portada"
                 title="Opciones de portada"
@@ -747,6 +748,7 @@ export default function Home() {
             code={activeLanding.code}
             modelChoice={activeLanding.modelChoice}
             onApplied={(code) => setActiveLanding((current) => current ? { ...current, code } : current)}
+            onOpenMedia={() => { if (mediaMenuRef.current) mediaMenuRef.current.open = true; }}
           />
         ) : (
           <iframe title={`Vista previa: ${activeLanding.code.title}`} srcDoc={buildPreviewDocument(activeLanding.code)} sandbox="allow-scripts" referrerPolicy="no-referrer" className="min-h-0 w-full flex-1 border-0 bg-white" />

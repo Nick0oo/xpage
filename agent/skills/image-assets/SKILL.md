@@ -19,3 +19,11 @@ Completa slots en `mediaSlots`, vinculados a secciones, con descripción suficie
 
 ## Ejemplo
 Para explicar preparación: manos midiendo ingredientes sobre una mesa de trabajo, encuadre lateral, luz suave, sin texto ni envases con marca.
+
+## Brief visual de cada slot
+Registra seis piezas legibles: qué ve la persona; qué acción ocurre; dónde/cuándo sucede; relación sujeto-fondo y espacio negativo; fuente de luz/temperatura; recorte y proporción. Si una no se deduce, propón una decisión y márcala como dirección creativa. No uses palabras de stock (“premium”, “cinemático”) en lugar de una escena describible.
+
+El texto alternativo explica la información del medio dentro de la sección. Si es decorativo, alt vacío solo cuando el HTML lo permita y el contexto ya comunique lo mismo. El slot incluye un `sectionId` y el contenedor HTML usa `data-xpage-slot`; no insertes texto en la imagen.
+
+## Prueba de necesidad
+Pregunta qué se vuelve más claro con el recurso y si el motivo ya se comunica mejor mediante SVG/CSS, tabla o copy. Evita pedir una imagen por cada sección. Alterna escala y tratamiento solo cuando sostenga el sistema visual; no afirmes disponibilidad del archivo, autor, procedencia o permiso.

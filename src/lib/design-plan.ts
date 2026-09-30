@@ -61,6 +61,12 @@ export const designPlanSchema = z.object({
     rationale: z.string().min(1),
     structuralDifference: z.array(z.string().min(1)).min(2),
   }).optional(),
+  designSystem: z.object({
+    id: z.string().regex(/^[a-z0-9-]+$/),
+    name: z.string().min(1),
+    rationale: z.string().min(1),
+    compositionRecipeIds: z.array(z.string().regex(/^[a-z0-9-]+$/)).min(1),
+  }).optional(),
   designDNA: z.object({
     brandMotif: z.string().min(1),
     palette: z.array(z.object({ role: z.string().min(1), value: z.string().min(1) })).min(2),

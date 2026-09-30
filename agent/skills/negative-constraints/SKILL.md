@@ -19,3 +19,12 @@ Completa `negativeConstraints` con controles verificables y `claims` con fuente/
 
 ## Ejemplo
 Si no hay reseñas en el brief, no crear estrellas, citas ni cifras de satisfacción; reservar ese espacio para explicar el proceso real.
+
+## Registro de límites
+Organiza cada regla por categoría: evidencia/copy, marca, interacción, accesibilidad, activos, responsive. Formula verificaciones que se puedan revisar en plan o artefacto (“todo CTA tiene destino”) en lugar de preferencias vagas (“que se vea profesional”). Marca la fuente del límite: brief, política de producto o estándar citado.
+
+## Afirmaciones
+Compara cada cifra, promesa, comparación y credencial con texto fuente. “Podría”, “hasta” o “aproximadamente” no vuelven respaldado un dato inventado. Si falta información para decidir, elimina el claim o indícalo como pregunta de producto sin escribirlo como copy publicado.
+
+## Acceso y medios
+Comprueba orden lógico de headings, labels claros, foco visible, contraste, lectura sin color, no autoplay, reduced-motion, alt útil y contenido completo sin JavaScript. No afirmes conformidad WCAG completa por una revisión de texto parcial.
