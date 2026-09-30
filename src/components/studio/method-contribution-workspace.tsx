@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, CircleAlert, CircleDashed, Clapperboard, Image, LoaderCircle, Merge, MessageCircle, Palette, Route, RotateCw, ScanSearch, Scissors, ShieldCheck } from "lucide-react";
+import { Check, CircleAlert, CircleDashed, Clapperboard, Image, LoaderCircle, Merge, MessageCircle, Palette, Route, RotateCw, ScanSearch, Scissors, Search, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { getTechnique } from "@/lib/techniques";
 import type { TechniqueRun } from "@/lib/studio-types";
 
@@ -24,6 +25,43 @@ const stateCopy = {
   ready: "Aporte listo para revisar",
   error: "Necesita atención",
 } as const;
+
+type MediaCandidate = { id: number; type: "image" | "video"; previewUrl: string; mediaUrl?: string; sourceUrl: string; creditUrl: string; author: string; altText: string; durationSeconds: number | null };
+
+function MethodMediaCandidates({ run, onChoose }: { run: TechniqueRun; onChoose: (text: string) => boolean }) {
+  const type = run.techniqueId === "video-assets" ? "video" : "image";
+  const [query, setQuery] = useState("");
+  const [items, setItems] = useState<MediaCandidate[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [previewId, setPreviewId] = useState<number | null>(null);
+  const [choiceError, setChoiceError] = useState("");
+  async function search() {
+    if (query.trim().length < 2) { setError("Escribe una búsqueda de al menos dos caracteres."); return; }
+    setLoading(true); setError(""); setItems([]);
+    try {
+      const response = await fetch(`/api/media/search?q=${encodeURIComponent(query.trim())}&type=${type}&page=1&traceId=${encodeURIComponent(run.traceId)}`, { cache: "no-store" });
+      const payload = await response.json() as { items?: MediaCandidate[]; error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "No se pudo buscar en Pexels.");
+      setItems(payload.items ?? []);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "No se pudo buscar en Pexels."); }
+    finally { setLoading(false); }
+  }
+  return <section className="space-y-2 rounded-xl border border-border bg-muted/20 p-3" aria-label={`Candidatos Pexels para método ${type}`}>
+    <div><p className="text-[11px] font-semibold">{type === "image" ? "Candidatos de imagen · Pexels" : "Candidatos de video · Pexels"}</p><p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">Busca con una consulta del artefacto. Elegir registra una preferencia; todavía no coloca el medio.</p></div>
+    <div className="flex gap-2"><Input aria-label={`Consulta Pexels ${type}`} value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void search(); } }} placeholder="Escribe una consulta concreta" maxLength={120} /><Button type="button" size="sm" variant="outline" disabled={loading || query.trim().length < 2} onClick={() => void search()}>{loading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />}Buscar</Button></div>
+    {error ? <p role="alert" className="text-xs text-destructive">{error}</p> : null}
+    {choiceError ? <p role="alert" className="text-xs text-destructive">{choiceError}</p> : null}
+    {items.length ? <ul className="grid max-h-96 gap-2 overflow-y-auto sm:grid-cols-2">{items.map((item) => <li key={item.id} className="overflow-hidden rounded-lg border border-border bg-background">
+      {item.type === "video" && previewId === item.id && item.mediaUrl ? <video controls autoPlay muted playsInline poster={item.previewUrl} className="aspect-video w-full object-cover"><source src={item.mediaUrl} type="video/mp4" /></video> : <img src={item.previewUrl} alt={item.altText} loading="lazy" className="aspect-video w-full bg-muted object-cover" />}
+      <div className="space-y-1.5 p-2"><p className="truncate text-[11px]">Por <a href={item.creditUrl} target="_blank" rel="noreferrer" className="text-primary underline">{item.author}</a>{item.durationSeconds ? ` · ${item.durationSeconds}s` : ""}</p><a href={item.sourceUrl} target="_blank" rel="noreferrer" className="text-[10px] text-muted-foreground underline">Fuente Pexels</a>
+        {item.type === "video" && item.mediaUrl ? <Button type="button" size="sm" variant="ghost" className="w-full" onClick={() => setPreviewId((current) => current === item.id ? null : item.id)}>{previewId === item.id ? "Cerrar video" : "Ver video"}</Button> : null}
+        <Button type="button" size="sm" variant="outline" className="w-full" onClick={() => { const saved = onChoose(`Preferencia de medio seleccionada desde búsqueda real de Pexels (${type}; consulta “${query.trim()}”; resultado ${item.id}; autor ${item.author}; fuente ${item.sourceUrl}). Pendiente de colocar en un espacio de la landing.`); setChoiceError(saved ? "" : "Esta preferencia no cabe en el artefacto de 6000 caracteres. Edita el artefacto antes de elegirla."); }}>Elegir preferencia</Button>
+      </div>
+    </li>)}</ul> : null}
+    {!items.length && !loading && !error ? <p className="text-[10px] text-muted-foreground">La búsqueda no se ha ejecutado. Pexels requiere una clave de servidor configurada.</p> : null}
+  </section>;
+}
 
 const methodVisuals = {
   "seed-strings": { Icon: Palette, color: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300" },
@@ -63,7 +101,7 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
               <span className={`grid size-9 shrink-0 place-items-center rounded-lg ${visual.color}`}><visual.Icon size={17} aria-hidden="true" /></span>
               <span className="min-w-0">
                 <span className="block text-xs font-semibold">{technique.name} · {run.status === "ready" ? "listo" : run.status === "error" ? "error" : run.status === "loading" ? "en curso" : "en cola"}</span>
-                <span className="mt-1 line-clamp-2 block text-xs leading-4 text-muted-foreground">{run.contribution?.artifact ?? technique.artifact}</span>
+                <span className="mt-1 line-clamp-2 block text-xs leading-4 text-muted-foreground">{run.contribution?.decision ?? technique.purpose}</span>
               </span>
             </a>
           );
@@ -112,6 +150,21 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
 
                 {contribution ? (
                   <>
+                    {run.techniqueId === "image-assets" || run.techniqueId === "video-assets" ? <MethodMediaCandidates run={run} onChoose={(text) => {
+                      const nextArtifact = `${contribution.artifact.trim()}\n\n${text}`;
+                      if (nextArtifact.length > 6000) return false;
+                      const nextContribution = { ...contribution, artifact: nextArtifact };
+                      onEdit(run.techniqueId, "artifact", nextArtifact);
+                      onCommit({ ...run, contribution: nextContribution });
+                      return true;
+                    }} /> : null}
+                    <details className="rounded-xl border border-border bg-muted/20 p-3">
+                      <summary className="cursor-pointer text-xs font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring">Ver resumen y decisiones</summary>
+                      <div className="mt-3 space-y-3">
+                        <div><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Resumen del método</p><p className="mt-1 text-sm leading-5">{contribution.decision}</p></div>
+                        <div><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Artefacto editable</p><p className="mt-1 whitespace-pre-wrap text-sm leading-5">{contribution.artifact}</p></div>
+                      </div>
+                    </details>
                     <div className="grid gap-3 sm:grid-cols-2">
                       <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
                         Decisión
@@ -119,7 +172,7 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
                       </label>
                       <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
                         Artefacto visible
-                        <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={technique.id === "seed-strings" ? 6000 : 3000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
+                        <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={6000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
                       </label>
                     </div>
                     <details className="rounded-xl border border-border bg-muted/20 p-3">

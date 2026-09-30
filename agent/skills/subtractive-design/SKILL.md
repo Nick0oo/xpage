@@ -1,42 +1,56 @@
 ---
 name: subtractive-design
-description: Audita secciones, adornos, copy y controles; elimina ruido sin sacrificar comprensión, evidencia o accesibilidad.
+description: Use when a landing plan contains repeated copy, decorative UI, competing actions, overlong sections, or redundant controls. Evaluate each element by the visitor task it supports; remove or combine only what can be removed without losing evidence, required content, context, access or an explicit user choice.
 ---
-# Diseño sustractivo · v1.2.0
+# Diseño sustractivo · v2.0.0
 
 ## Propósito
-Conservar lo necesario para entender la oferta y actuar, retirando duplicación y ornamentación sin función.
+
+Reduce el esfuerzo de lectura y decisión eliminando o combinando elementos que no cumplen una tarea útil. La reducción es una decisión editorial con conservación de contenido, nunca una consigna estética para vaciar la página ni una invitación a borrar requisitos.
+
+## Referencias locales
+
+Si está disponible `read_seed_reference`, para propuesta/plan consulta `frontend-design`, `web-prototype-layouts` y `system-prompt-excerpts`; usa `web-prototype-checklist` en la revisión y `web-prototype-skill` al construir HTML. Las referencias fijadas de OpenDesign informan composición modular y revisión de oficio, no ordenan copiar un layout. Totality Festival solo es referencia contextual si el brief lo justifica. Anota las que realmente leíste.
+
+## Cuándo se aplica
+
+- Se seleccionó `subtractive-design`, o aparecen bloques que repiten una misma promesa/tarea.
+- Hay más de un CTA con el mismo destino, adornos que compiten con el contenido o controles cuya acción no está clara.
+- La página requiere recortar, pero tiene inventarios, condiciones, objeciones o contexto que deben seguir disponibles.
 
 ## Procedimiento
-1. Da a cada sección una función y una pregunta concreta que resuelve. Una landing completa puede necesitar varias secciones para mostrar su oferta, ejemplos y recorrido.
-2. Revisa párrafos, tarjetas, navegación, badges, controles y recursos frente a esa función.
-3. Retira repeticiones y ruido, pero no reduzcas profundidad útil ni elimines ejemplos y entregables que el usuario solicitó. Menos secciones no significa mejor diseño.
-4. Conserva información factual necesaria, contexto para decidir, detalles útiles, contenido obligatorio y alternativas accesibles.
-5. Recomprueba ritmo y continuidad tras cada eliminación.
 
-## Entrega y verificación
-Registra eliminaciones concretas y su razón en `discardedElements`; documenta en `contributions.artifact` qué simplificaste. La estructura debe explicar oferta, objeciones relevantes, ejemplos o entregables y siguiente paso. No impongas tres secciones ni confundas menos contenido con más claridad automáticamente.
+1. **Fija el conjunto protegido.** Copia los hechos respaldados, claims y fuentes, inventario explícito completo/cantidades, accesibilidad, restricciones, CTA/destino y decisiones editadas por el usuario. Ninguno se elimina por brevedad.
+2. **Haz inventario de candidatos.** Recorre cada sección, idea/copy, medio, adorno, CTA/control y pregunta. Para cada elemento pregunta: qué tarea resuelve, quién lo necesita, si se repite, si puede combinarse y qué información se perdería.
+3. **Elige conservar, combinar, retirar o pedir dato.** Combina dos bloques solo si comparten tarea y se mantiene la relación con los hechos; elimina una repetición con referencia a la copia restante; elimina decoración solo cuando no contribuya a la identidad/comprensión; conserva un control si tiene una acción operable.
+4. **Mantén recorrido suficiente.** Asegura que hero aún define oferta/audiencia/acción, que detalles necesarios para decidir sobreviven y que el cierre conserva un destino real. No fuerces tres secciones ni una longitud objetivo.
+5. **Valida los costes.** Para cada eliminación, comprueba explícitamente que no desapareció ninguna pieza enumerada, fuente, condición, texto informativo, alt/fallback, estado de teclado/foco, sección referida por ancla o elección anterior de la persona.
+6. **Documenta incertidumbre.** Si dos contenidos parecen duplicados pero su diferencia cambia una condición, mantén ambos o pide el dato en `open_inputs`; no adivines.
+
+## Artefacto editable
+
+Devuelve en `TechniqueContribution.artifact` una tabla compacta:
+
+```text
+element | tarea actual | decisión (keep/combine/remove/open question) | razón observable
+preserved_inventory: IDs/requisitos/cantidades y secciones destino sin cambios
+section_map_after: sección → tarea → contenido que sobrevive
+cta_map: acción principal, otros enlaces necesarios y destino real
+removed_elements: lista exacta que `discardedElements` debe reflejar
+accessibility_preserved: teclado/foco/semántica/texto alternativo/reduced-motion
+references_read: nombres leídos o “sin referencias locales”
+```
+
+`discardedElements` del plan debe repetir los descartes sustantivos y sus motivos; no escondas la eliminación en prosa. Propón un máximo de 12 candidatos relevantes en la ficha, no cada palabra cambiada. Si no hay nada que retirar, registra que la estructura se conserva y por qué.
 
 ## Ejemplo
-Retira una fila de logos sin respaldo; conserva una explicación breve del proceso que sí está descrito.
 
-## Auditoría de densidad
-Para cada bloque pregunta: ¿qué decisión o comprensión permite?, ¿repite otro bloque?, ¿lleva la evidencia más cerca del claim?, ¿es contenido requerido? Retira repetición si la página sigue completa. Conserva ejemplos, alcance y objeciones útiles aunque la página quede más larga.
+El plan tiene tres secciones que repiten “fácil de usar”; el brief detalla además instalación y requisitos técnicos. Combina las tres promesas en una descripción apoyada en esos pasos; conserva instalación y requisitos porque cambian la decisión. Retira un CTA duplicado solo si la acción principal permanece disponible.
 
-## Simplificación visual
-Retira adornos que compitan con titulares, bordes y sombras repetidos, badges vacíos y módulos sin diferencia funcional. No retires un motivo visual que conecta capítulos ni una orientación que ayuda a navegar. Sustituye el patrón, no solo lo borres, cuando una sección pierda estructura.
+## Revisión
 
-## Entrega
-En `discardedElements` registra lo quitado y la razón concreta. Revisa el flujo antes/después para asegurar que la transición entre secciones todavía explica oferta, ejemplos y acción. “Menos es más” no cuenta como razón.
-## Auditoría de sustracción
-Clasifica candidatos a retiro en cuatro grupos: repetición, decoración, claim no respaldado y componente de comprensión. Solo los tres primeros se pueden retirar automáticamente.
-- Retira una repetición si otro bloque aporta la misma información y no añade un paso o formato útil.
-- Retira ornamento si no guía atención, identifica una relación, mejora orientación o aporta identidad.
-- Retira claims sin fuente; no los reemplaces por una afirmación más vaga que implique el mismo resultado.
-- Conserva ejemplos pedidos, requisitos contables, etiquetas necesarias, texto alternativo, foco, instrucciones y contexto de una decisión.
-- Cuando reduzcas elementos, verifica que no borraste una etapa necesaria entre entender la oferta y ejecutar su CTA.
-- Una tarjeta puede desaparecer y su texto permanecer como lista, nota o figura; sustracción no exige quitar contenido.
-- Antes de quitar un recurso visual, comprueba si tenía función explicativa o solo adorno.
-- Registra cada retiro en discardedElements con elemento identificable y razón concreta.
-- Contrasta el antes/después: mismos requisitos, menos repetición; si cae la comprensión, restaura el fragmento necesario.
-- No uses «minimalista» como razón para crear una página pobre o tres bloques vacíos.
+- Para cada descarte hay una razón observable ligada a una tarea, no “se ve más limpio”.
+- Los hechos, condiciones, piezas solicitadas y cambios del usuario sobreviven exactamente.
+- La información para decidir sigue antes del CTA y el destino existe.
+- La interacción restante conserva etiqueta, operación por teclado, foco y alternativa accesible.
+- No se redujo la página a longitud fija ni se convirtió en collage vacío.

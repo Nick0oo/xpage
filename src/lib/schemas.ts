@@ -25,6 +25,7 @@ export const briefSchema = z.object({
   references: z.string().trim().max(1200).optional().default(""),
   avoid: z.string().trim().max(360).optional().default(""),
   objective: z.string().trim().max(240).optional().default(""),
+  designSystemId: z.string().regex(/^[a-z0-9-]{1,80}$/).optional(),
   variety: z.enum(["sutil", "equilibrada", "atrevida"]).default("equilibrada"),
   movement: z.enum(["reducido", "moderado", "dinamico"]).default("moderado"),
   density: z.enum(["aireada", "equilibrada", "densa"]).default("equilibrada"),

@@ -45,7 +45,7 @@ flowchart LR
 5. **Itera.** Vuelve al estudio, abre Studio, selecciona una sección y revisa una propuesta de IA. Puedes buscar medios, incorporar los elegidos y consultar la traza.
 6. **Conserva y entrega.** Guarda para poder reabrirla después y descarga el resultado. La exportación con medios incluye archivos locales y créditos.
 
-Las páginas generadas usan IDs de sección estables. Así Studio puede modificar un fragmento sin reemplazar el documento completo. La vista previa usa un `iframe` aislado. Si no guardas una landing, puedes seguir editándola en el flujo actual; **guárdala en Biblioteca para conservarla tras recargar o cerrar la aplicación**.
+Las páginas generadas usan IDs de sección estables. Así Studio puede modificar un fragmento sin reemplazar el documento completo. La vista previa usa un `iframe` aislado. Las generaciones completas también se pueden recuperar desde **Biblioteca → Sin guardar**, donde sus salidas se leen de las trazas locales. Guardar sigue siendo una decisión explícita; los cambios temporales del editor deben guardarse para conservar esa nueva versión.
 
 ## Ocho métodos, una dirección
 
@@ -66,11 +66,21 @@ Las instrucciones de Eve están en [`agent/instructions.md`](agent/instructions.
 
 El brief manda sobre la receta visual. Cuando pide una cantidad concreta de contenido, XPage la lleva al plan y comprueba que los elementos aparezcan en las secciones del HTML. Si faltan, intenta una reparación acotada y muestra el error si el resultado sigue incompleto.
 
-La [skill de Cadenas semilla v2](agent/skills/seed-strings/SKILL.md) distingue el método [String Seed of Thought](https://arxiv.org/abs/2510.21150) de su adaptación a diseño web. Incluye [materiales de OpenDesign copiados y atribuidos](agent/skills/seed-strings/references/open-design/README.md), que Eve puede leer por fase mediante `read_seed_reference`. La ruta elegida y las ediciones de la persona se conservan durante la combinación y la construcción del HTML; la cadena no se interpreta como una identidad de marca ni como un generador de resultados deterministas.
+Las ocho skills y `combine` tienen procedimientos, artefactos editables, ejemplos y criterios de revisión. La [skill de Cadenas semilla v2](agent/skills/seed-strings/SKILL.md) distingue el método [String Seed of Thought](https://arxiv.org/abs/2510.21150) de su adaptación a diseño web. Los [materiales de OpenDesign copiados y atribuidos](agent/skills/seed-strings/references/open-design/README.md) se comparten entre métodos y Eve puede leerlos por fase mediante `read_seed_reference`. La ruta elegida y las ediciones de la persona se conservan durante la combinación y la construcción del HTML; la cadena no se interpreta como una identidad de marca ni como un generador de resultados deterministas. El prompt final desarrolla copy, composición por sección, interacciones, slots y el inventario completo solicitado; las notas internas del brief pertenecen al plan y a la trazabilidad.
+
+## Espacios de trabajo
+
+- **Biblioteca:** tarjetas con vista previa, búsqueda y filtro de tema. Abre **Detalles** para ver la página, su dirección, descarga y proceso; **Studio** continúa la edición. La pestaña **Sin guardar** recupera generaciones completas, conserva su procedencia y permite abrirlas, descargarlas o guardarlas cuando sus metadatos estén completos.
+- **Trazabilidad:** carpetas por proceso, con sus ejecuciones relacionadas y acceso a los eventos originales. El estado actual y los errores anteriores permanecen visibles; la agrupación usa los vínculos guardados de cada ejecución.
+- **Eve:** conexión y modelo, prueba estructurada editable, catálogo de skills y tools, referencias atribuidas de OpenDesign y sistemas de diseño. Puedes leer las instrucciones y elegir un sistema para la creación. Las referencias del plugin `web-prototype` son materiales de autoría que usa el agente.
+
+El [plan de esta evolución](docs/v3/PLAN.md) documenta el alcance y el reparto de los cambios.
 
 ## Studio: edición y exportación
 
 **Vista previa.** La página terminada se muestra dentro de la app. Puedes alternar entre verla y abrir Studio desde la barra superior, o volver al formulario y abrir cualquiera de las dos vistas de nuevo.
+
+**Estructura y código.** Studio permite proponer secciones nuevas con Eve, reordenar las secciones por arrastre o mediante botones y editar HTML, CSS y JavaScript. Las propuestas de código se previsualizan antes de aplicarse; las páginas guardadas conservan revisiones y recuperación de versiones. Las generaciones sin guardar también pueden abrirse en el editor.
 
 **Edición puntual.** Studio trabaja con secciones identificadas por `data-xpage-section`. Selecciona la sección, describe el cambio, elige métodos y compara la propuesta antes de aplicarla. En una landing guardada, las revisiones quedan asociadas a la Biblioteca y puedes deshacer cambios. Una landing antigua sin marcadores válidos sigue siendo visible y descargable, pero no admite esta edición puntual.
 
@@ -170,9 +180,9 @@ Para respaldar una instalación, cierra XPage y copia **juntos** `prisma/xpage.d
 
 - XPage se ejecuta localmente y **no ofrece publicación ni sincronización en la nube**.
 - Busca vídeos de stock, pero **no genera vídeo**.
-- La edición de Studio actúa sobre **una sección por propuesta**; las páginas históricas sin marcadores de sección solo se pueden ver y descargar.
+- La edición puntual con IA requiere marcadores de sección válidos. El editor de código permite revisar el documento completo; para reordenar, las secciones deben estar al mismo nivel del HTML.
 - Los modelos pueden omitir detalles visuales o devolver resultados débiles. Los contratos detectan requisitos explícitos y fallos estructurales, pero el resultado final necesita revisión editorial y visual.
-- Los borradores sin guardar pertenecen a la sesión de trabajo. Usa Biblioteca para recuperarlos después.
+- Biblioteca recupera las salidas HTML completas de las trazas. Las ediciones temporales posteriores necesitan guardado explícito; los registros antiguos con metadatos ausentes requieren completar esos datos para guardarlos.
 
 ## Referencias
 

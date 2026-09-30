@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, BookOpen, Check, Download, GitBranch, ImagePlus, LoaderCircle, Save, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
@@ -19,6 +20,8 @@ import type { ActiveLanding, PromptResult, TechniqueRun } from "@/lib/studio-typ
 import { getLanding, recordHtmlExport, saveLanding } from "@/lib/landing-storage";
 import { buildPreviewDocument, makeDownloadName } from "@/lib/preview-document";
 import { DEFAULT_MODEL_CHOICE, MODEL_CHOICES, type ModelChoice } from "@/lib/model-choice";
+import { designSystems } from "@/lib/design-systems/catalog";
+import { techniques } from "@/lib/techniques";
 
 const emptyBrief: Brief = {
   topic: "",
@@ -93,7 +96,9 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return payload as T;
 }
 
-export default function Home() {
+function HomeContent() {
+  const searchParams = useSearchParams();
+  const searchKey = searchParams.toString();
   const [brief, setBrief] = useState<Brief>(emptyBrief);
   const [selectedIds, setSelectedIds] = useState<TechniqueId[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof Brief, string>>>({});
@@ -166,6 +171,10 @@ export default function Home() {
       const savedModel = window.localStorage.getItem("xpage.model-choice");
       if (savedModel && MODEL_CHOICES.includes(savedModel as ModelChoice)) setModelChoice(savedModel as ModelChoice);
     }
+    const preferredDesignSystem = window.localStorage.getItem("xpage.design-system-id");
+    if (preferredDesignSystem && designSystems.some((recipe) => recipe.id === preferredDesignSystem)) {
+      setBrief((current) => current.designSystemId ? current : { ...current, designSystemId: preferredDesignSystem });
+    }
     skipWorkflowWrite.current = true;
   }, []);
 
@@ -189,13 +198,63 @@ export default function Home() {
   }, [step]);
 
   useEffect(() => {
-    const landingId = new URLSearchParams(window.location.search).get("landingId");
-    if (!landingId || restoredLandingId.current === landingId) return;
-    restoredLandingId.current = landingId;
+    const params = new URLSearchParams(searchKey);
+    const landingId = params.get("landingId");
+    const draftId = params.get("draft");
+    const resourceId = landingId ?? draftId;
+    if (!resourceId || restoredLandingId.current === resourceId) return;
     let current = true;
-    void getLanding(landingId).then((landing) => {
+    const load = landingId
+      ? getLanding(landingId)
+      : fetch(`/api/drafts/${encodeURIComponent(draftId!)}`, { cache: "no-store" }).then(async (response) => {
+          const payload = await response.json().catch(() => null) as Record<string, unknown> | null;
+          if (!response.ok) throw new Error(typeof payload?.error === "string" ? payload.error : "No se pudo recuperar esta generación.");
+          if (!payload || typeof payload.id !== "string" || typeof payload.html !== "string") throw new Error("La traza no contiene una salida HTML que se pueda abrir en Studio.");
+          const parsedBrief = briefSchema.safeParse(payload.brief);
+          const techniqueIds = Array.isArray(payload.techniqueIds)
+            ? payload.techniqueIds.filter((id): id is TechniqueId => typeof id === "string" && TECHNIQUE_IDS.includes(id as TechniqueId))
+            : [];
+          const trace = payload.trace && typeof payload.trace === "object" ? payload.trace as Record<string, unknown> : {};
+          const context = payload.context && typeof payload.context === "object" ? payload.context as Record<string, unknown> : {};
+          const prompt = typeof payload.prompt === "string" ? payload.prompt : "";
+          const code = landingCodeSchema.safeParse({ title: typeof payload.title === "string" ? payload.title : "Borrador sin guardar", html: payload.html, css: payload.css ?? "", js: payload.js ?? "" });
+          if (!code.success) throw new Error("La salida HTML de la traza está incompleta o supera el límite del editor.");
+          const plan = context.designPlan ? designPlanSchema.safeParse(context.designPlan) : null;
+          return {
+            id: payload.id, title: code.data.title, html: code.data.html, css: code.data.css, js: code.data.js,
+            brief: parsedBrief.success ? parsedBrief.data : null, techniqueIds, prompt: prompt || null,
+            modelChoice: typeof payload.modelChoice === "string" && MODEL_CHOICES.includes(payload.modelChoice as ModelChoice) ? payload.modelChoice as ModelChoice : null,
+            trace: { category: typeof trace.category === "string" ? trace.category : "", status: typeof trace.status === "string" ? trace.status : "", rootTraceId: trace.rootTraceId, parentTraceId: trace.parentTraceId, sourceTraceId: trace.sourceTraceId },
+            completeness: {
+              hasBrief: parsedBrief.success, hasPrompt: Boolean(prompt), hasTechniques: techniqueIds.length > 0,
+              hasModel: typeof payload.modelChoice === "string" && MODEL_CHOICES.includes(payload.modelChoice as ModelChoice),
+            },
+            originalModel: typeof payload.originalModel === "string" ? payload.originalModel : null,
+            designPlan: plan?.success ? plan.data : null,
+          };
+        });
+    void load.then((landing) => {
       if (!current) return;
       if (!landing) throw new Error("No encontramos esta landing en la Biblioteca local.");
+      restoredLandingId.current = resourceId;
+      if ("completeness" in landing) {
+        const parsedBrief = briefSchema.safeParse(landing.brief);
+        const missing = landing.completeness as { hasBrief: boolean; hasPrompt: boolean; hasTechniques: boolean; hasModel: boolean };
+        setActiveLanding({
+          code: { title: landing.title as string, html: landing.html as string, css: landing.css as string, js: landing.js as string },
+          brief: parsedBrief.success ? parsedBrief.data : emptyBrief,
+          techniqueIds: landing.techniqueIds as TechniqueId[], prompt: typeof landing.prompt === "string" ? landing.prompt : "",
+          traceId: landing.id as string, savedId: null,
+          modelChoice: (landing.modelChoice as ModelChoice | null) ?? modelChoice,
+          designPlan: (landing.designPlan as ActiveLanding["designPlan"]) ?? null,
+          creativeDirection: null, mediaAssets: [], draftIncomplete: missing,
+          originalModel: typeof landing.originalModel === "string" ? landing.originalModel : null,
+        });
+        setSaveMessage("Borrador recuperado desde la traza. Sus cambios siguen sin guardar; elige Guardar cuando esté completo.");
+        setStudioActive(true);
+        setView("preview");
+        return;
+      }
       setActiveLanding({
         code: { title: landing.title, html: landing.html, css: landing.css, js: landing.js },
         brief: landing.brief,
@@ -216,11 +275,22 @@ export default function Home() {
       if (current) setFormError(error instanceof Error ? error.message : "No se pudo reabrir la landing.");
     });
     return () => { current = false; };
-  }, []);
+  }, [searchKey]);
 
   function changeBrief(field: keyof Brief, value: string) {
     const changed = brief[field] !== value;
-    setBrief((current) => ({ ...current, [field]: value }));
+    setBrief((current) => {
+      if (field === "designSystemId" && !value) {
+        const next = { ...current };
+        delete next.designSystemId;
+        return next;
+      }
+      return { ...current, [field]: value };
+    });
+    if (field === "designSystemId") {
+      if (value && designSystems.some((recipe) => recipe.id === value)) window.localStorage.setItem("xpage.design-system-id", value);
+      else window.localStorage.removeItem("xpage.design-system-id");
+    }
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
     if (changed && (promptResults.length > 0 || methodRuns.length > 0)) {
       setPromptResults([]);
@@ -579,6 +649,10 @@ export default function Home() {
 
   async function saveCurrentLanding() {
     if (!activeLanding || activeLanding.savedId || saveLoading) return;
+    if (activeLanding.draftIncomplete && (!activeLanding.draftIncomplete.hasBrief || !activeLanding.draftIncomplete.hasPrompt || !activeLanding.draftIncomplete.hasTechniques || !activeLanding.draftIncomplete.hasModel)) {
+      setSaveError("Este borrador no tiene todos los datos para Biblioteca. Completa un brief válido, al menos un método, el prompt y confirma el modelo antes de guardarlo.");
+      return;
+    }
     const id = crypto.randomUUID();
     setSaveLoading(true);
     setSaveMessage("");
@@ -644,6 +718,7 @@ export default function Home() {
                 <MediaWorkspace
                   brief={activeLanding.brief}
                   modelChoice={activeLanding.modelChoice}
+                  modelChoiceConfirmed={!activeLanding.draftIncomplete || activeLanding.draftIncomplete.hasModel}
                   traceId={activeLanding.traceId}
                   savedLandingId={activeLanding.savedId}
                   designPlan={activeLanding.designPlan}
@@ -710,12 +785,36 @@ export default function Home() {
         ) : null}
         {saveError ? <p role="alert" className="shrink-0 border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-center text-xs text-destructive">{saveError}</p> : null}
 
+        {activeLanding.draftIncomplete && (!activeLanding.draftIncomplete.hasBrief || !activeLanding.draftIncomplete.hasPrompt || !activeLanding.draftIncomplete.hasTechniques || !activeLanding.draftIncomplete.hasModel) ? <details className="shrink-0 border-b border-amber-500/30 bg-amber-500/5 px-4 py-2">
+          <summary className="cursor-pointer text-xs font-semibold">Completar datos del borrador para guardarlo en Biblioteca</summary>
+          <div className="mx-auto grid max-h-[40dvh] max-w-5xl gap-4 overflow-y-auto py-3 lg:grid-cols-2">
+            <div className="grid gap-2 sm:grid-cols-2">
+              {!activeLanding.draftIncomplete.hasModel ? <label className="text-[11px] font-medium text-muted-foreground sm:col-span-2">Confirma un modelo para guardar y continuar<select value="" onChange={(event) => { if (!event.target.value) return; const selected = event.target.value as ModelChoice; setActiveLanding((current) => current ? { ...current, modelChoice: selected, draftIncomplete: { ...current.draftIncomplete!, hasModel: true } } : current); }} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs"><option value="">Selecciona un modelo</option>{MODEL_CHOICES.map((choice) => <option key={choice} value={choice}>{choice}</option>)}</select>{activeLanding.originalModel ? <span className="mt-1 block text-[10px] font-normal">La traza conserva el identificador original “{activeLanding.originalModel}”. La selección anterior no se pudo normalizar.</span> : null}</label> : null}
+              {(["topic", "offer", "audience", "tone"] as const).map((field) => <label key={field} className="text-[11px] font-medium text-muted-foreground">{{ topic: "Tema", offer: "Oferta", audience: "Público", tone: "Tono" }[field]}<input value={activeLanding.brief[field]} onChange={(event) => setActiveLanding((current) => {
+                if (!current) return current;
+                const nextBrief = { ...current.brief, [field]: event.target.value };
+                const parsed = briefSchema.safeParse(nextBrief);
+                return { ...current, brief: nextBrief, draftIncomplete: { ...current.draftIncomplete!, hasBrief: parsed.success } };
+              })} className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-xs" /></label>)}
+              <label className="text-[11px] font-medium text-muted-foreground sm:col-span-2">Prompt<textarea value={activeLanding.prompt} onChange={(event) => { setActiveLanding((current) => current ? { ...current, prompt: event.target.value, draftIncomplete: { ...current.draftIncomplete!, hasPrompt: Boolean(event.target.value.trim()) } } : current); }} maxLength={12_000} rows={3} className="mt-1 w-full rounded-md border border-input bg-background p-2 text-xs" /></label>
+            </div>
+            <fieldset className="space-y-1"><legend className="text-[11px] font-medium text-muted-foreground">Métodos que describen esta página (elige al menos uno)</legend><div className="grid gap-1 sm:grid-cols-2">{techniques.map((technique) => <label key={technique.id} className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-[11px]"><input type="checkbox" checked={activeLanding.techniqueIds.includes(technique.id)} onChange={(event) => { setActiveLanding((current) => {
+                  if (!current) return current;
+                  const nextIds = event.target.checked ? [...current.techniqueIds, technique.id] : current.techniqueIds.filter((id) => id !== technique.id);
+                  return { ...current, techniqueIds: nextIds, draftIncomplete: { ...current.draftIncomplete!, hasTechniques: nextIds.length > 0 } };
+                }); }} />{technique.name}</label>)}</div></fieldset>
+          </div>
+          <p className="mx-auto max-w-5xl text-[10px] text-muted-foreground">Estado: brief {activeLanding.draftIncomplete.hasBrief ? "completo" : "pendiente"} · métodos {activeLanding.draftIncomplete.hasTechniques ? "listos" : "pendientes"} · prompt {activeLanding.draftIncomplete.hasPrompt ? "listo" : "pendiente"} · modelo {activeLanding.draftIncomplete.hasModel ? "confirmado" : "pendiente"}. Guardar sigue siendo una acción explícita.</p>
+        </details> : null}
+
         {studioActive ? (
           <SectionEditorWorkspace
             landingId={activeLanding.savedId}
+            traceId={activeLanding.traceId}
             code={activeLanding.code}
             brief={activeLanding.brief}
             modelChoice={activeLanding.modelChoice}
+            modelChoiceConfirmed={!activeLanding.draftIncomplete || activeLanding.draftIncomplete.hasModel}
             onApplied={(code) => setActiveLanding((current) => current ? { ...current, code } : current)}
             onOpenMedia={() => { if (mediaMenuRef.current) mediaMenuRef.current.open = true; }}
           />
@@ -922,4 +1021,8 @@ export default function Home() {
       </div>
     </AppShell>
   );
+}
+
+export default function Home() {
+  return <Suspense fallback={<main className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Abriendo el Studio…</main>}><HomeContent /></Suspense>;
 }

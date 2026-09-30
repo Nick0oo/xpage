@@ -14,6 +14,8 @@ export const mediaSlotSchema = z.object({
   altText: z.string().min(1),
   poster: z.string().optional(),
   reducedMotion: z.string().optional(),
+  searchQueries: z.array(z.string().trim().min(1).max(160)).max(3).optional(),
+  selectionCriteria: z.string().trim().min(1).max(900).optional(),
 });
 
 export const landingSectionSchema = z.object({
@@ -39,7 +41,7 @@ export const techniqueContributionSchema = z.object({
   skillVersion: z.string().min(1),
   status: z.enum(["applied", "modified", "omitted"]),
   decision: z.string().min(1),
-  artifact: z.string().min(1),
+  artifact: z.string().trim().min(1).max(6000),
   reason: z.string().optional(),
   tensions: z.array(z.string()),
   resolution: z.string().optional(),
@@ -144,6 +146,43 @@ export function enumerableContentFindings(plan: DesignPlan, offer: string) {
   const missingFromPrompt = requirement?.requiredItems.filter((item) => !normalize(plan.prompt).includes(normalize(item))) ?? [];
   if (missingFromCopy.length) findings.push(`${missingFromCopy.length} piezas no aparecen completas en el copy de la sección asignada.`);
   if (missingFromPrompt.length) findings.push(`${missingFromPrompt.length} piezas no aparecen completas en el prompt editable.`);
+  return findings;
+}
+
+/** Keep production notes out of visitor-facing copy while preserving them in plan metadata. */
+export function publicCopyDisclosureFindings(value: string, location = "copy público") {
+  const normalized = value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
+  const patterns: Array<[RegExp, string]> = [
+    [/\b(?:el|este) brief\s+(?:no|aun no|todavia no)\b[^.!?]{0,140}/, "relata una limitación del brief"],
+    [/\b(?:algunos? )?detalles?\s+(?:estan? )?por definir\b/, "expone una nota interna pendiente de definición"],
+    [/\bno\s+(?:se\s+)?(?:presentan|incluyen|muestran)\s+(?:ejemplos?|testimonios?|datos?|casos?)\b/, "anuncia una omisión interna como contenido para visitantes"],
+    [/\bno representa\s+(?:una\s+)?(?:funcion|caracteristica|feature)\b/, "expone una nota de implementación"],
+    [/\b(?:falta|faltan|pendiente|pendientes)\s+(?:definir|confirmar|especificar|completar)\b/, "expone una nota interna pendiente"],
+  ];
+  return patterns.flatMap(([pattern, reason]) => {
+    const match = normalized.match(pattern);
+    return match ? [`${location} ${reason}: «${match[0].trim()}». Reemplázalo por contenido directo y útil, sin añadir hechos.`] : [];
+  });
+}
+
+export function publicPlanCopyFindings(plan: DesignPlan) {
+  return plan.sections.flatMap((section) => publicCopyDisclosureFindings(`${section.headline}\n${section.copy}`, `Sección ${section.id}`));
+}
+
+/** Strict media fields for newly generated plans only; persisted historical plans stay readable. */
+export function newPlanMediaFindings(plan: DesignPlan) {
+  const findings: string[] = [];
+  const slotIds = new Set(plan.mediaSlots.map(({ id }) => id));
+  if (slotIds.size !== plan.mediaSlots.length) findings.push("Los IDs de slots de medios deben ser únicos.");
+  for (const section of plan.sections) {
+    for (const slotId of section.mediaSlotIds) if (!slotIds.has(slotId)) findings.push(`El slot ${slotId} de ${section.id} no existe en mediaSlots.`);
+    if (new Set(section.mediaSlotIds).size !== section.mediaSlotIds.length) findings.push(`La sección ${section.id} repite un slot de medios.`);
+  }
+  for (const slot of plan.mediaSlots) {
+    if (!plan.sections.some(({ mediaSlotIds }) => mediaSlotIds.includes(slot.id))) findings.push(`El slot ${slot.id} no está asignado a una sección.`);
+    if (!slot.searchQueries?.length || !slot.selectionCriteria?.trim()) findings.push(`El slot ${slot.id} requiere searchQueries (1–3) y selectionCriteria para la búsqueda de medios.`);
+    if (slot.type === "video" && (!slot.poster?.trim() || !slot.reducedMotion?.trim())) findings.push(`El slot de vídeo ${slot.id} requiere poster y alternativa estática/reducedMotion.`);
+  }
   return findings;
 }
 

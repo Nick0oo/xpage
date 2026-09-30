@@ -261,6 +261,7 @@ export async function listGenerationTraces() {
     orderBy: { updatedAt: "desc" },
     include: {
       _count: { select: { steps: true } },
+      steps: { where: { status: "failed" }, select: { id: true, errorMessage: true } },
       landings: { select: { id: true, title: true }, orderBy: { createdAt: "desc" } },
     },
   });
@@ -278,6 +279,8 @@ export async function listGenerationTraces() {
     createdAt: trace.createdAt.toISOString(),
     updatedAt: trace.updatedAt.toISOString(),
     stepCount: trace._count.steps,
+    failedStepCount: trace.steps.length,
+    errors: trace.steps.map((step) => step.errorMessage).filter((message): message is string => Boolean(message)),
     landings: trace.landings,
     savedToLibrary: trace.landings.length > 0,
   }));

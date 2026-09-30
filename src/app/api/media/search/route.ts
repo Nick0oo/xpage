@@ -38,7 +38,7 @@ export async function GET(request: Request) {
           if (!videoFile || !pexelsPageUrl(video.url) || !pexelsPageUrl(video.user.url) || !video.image.startsWith("https://images.pexels.com/")) return [];
           return [{
             id: video.id, type, previewUrl: video.image, sourceUrl: video.url, creditUrl: video.user.url, author: video.user.name,
-            altText: `Video de ${video.user.name}`, width: videoFile.width ?? video.width, height: video.height, durationSeconds: video.duration,
+            mediaUrl: videoFile.link, altText: `Video de ${video.user.name}`, width: videoFile.width ?? video.width, height: video.height, durationSeconds: video.duration,
           }];
         });
     const parsed = pexelsMediaSchema.array().safeParse(items ?? []);

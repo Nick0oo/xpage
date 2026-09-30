@@ -44,4 +44,6 @@ export type ActiveLanding = {
   designPlan: DesignPlan | null;
   mediaAssets: MediaAssetRecord[];
   creativeDirection?: CreativeDirection | null;
+  draftIncomplete?: { hasBrief: boolean; hasPrompt: boolean; hasTechniques: boolean; hasModel: boolean };
+  originalModel?: string | null;
 };

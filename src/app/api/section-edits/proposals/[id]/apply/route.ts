@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
+import postcss from "postcss";
 import { prisma } from "@/lib/prisma";
 import { recordTraceStep } from "@/lib/generation-traces";
 import { isLocalRequest } from "@/lib/media/request-guard";
-import { applySectionFragment, extractSection, validateScopedCss } from "@/lib/section-edits/document";
+import { applySectionFragment, extractSection, getDocumentMediaMarkup, getDocumentSlotIds, getEditableSections, validateScopedCss } from "@/lib/section-edits/document";
 import { landingFingerprint } from "@/lib/section-edits/fingerprint";
 import { sectionEditApplySchema, sectionPatchSchema } from "@/lib/section-edits/schemas";
 
@@ -30,6 +31,44 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   }
 
   try {
+    if (proposal.sectionId === "__document__") {
+      const documentCode = JSON.parse(proposal.patchJson) as { html?: unknown; css?: unknown; js?: unknown; summary?: unknown };
+      if (typeof documentCode.html !== "string" || typeof documentCode.css !== "string" || typeof documentCode.js !== "string" || typeof documentCode.summary !== "string") throw new Error("La propuesta de código está incompleta.");
+      postcss.parse(documentCode.css);
+      const previousSections = getEditableSections(landing.html);
+      const nextSections = getEditableSections(documentCode.html);
+      const nextIds = nextSections.map((section) => section.id);
+      if (nextSections.some((section) => !section.editable) || new Set(nextIds).size !== nextIds.length || previousSections.some((section) => !nextIds.includes(section.id))) throw new Error("La propuesta cambió los marcadores actuales o añadió marcadores inválidos.");
+      if (JSON.stringify(getDocumentSlotIds(landing.html)) !== JSON.stringify(getDocumentSlotIds(documentCode.html))) throw new Error("La propuesta cambió los espacios de medios actuales.");
+      if (JSON.stringify(getDocumentMediaMarkup(landing.html)) !== JSON.stringify(getDocumentMediaMarkup(documentCode.html))) throw new Error("La propuesta cambió un medio colocado.");
+      const revisionId = randomUUID();
+      const result = await prisma.$transaction(async (tx) => {
+        const update = await tx.savedLanding.updateMany({
+          where: { id: landing.id, sectionRevision: proposal.baseRevision, html: landing.html, css: landing.css, js: landing.js },
+          data: { html: documentCode.html as string, css: documentCode.css as string, js: documentCode.js as string, sectionRevision: { increment: 1 } },
+        });
+        if (update.count !== 1) throw new Error("stale_revision");
+        let parent = await tx.sectionRevision.findUnique({ where: { savedLandingId_revision: { savedLandingId: landing.id, revision: proposal.baseRevision } } });
+        if (!parent && proposal.baseRevision === 0) parent = await tx.sectionRevision.create({ data: {
+          id: randomUUID(), savedLandingId: landing.id, revision: 0, summary: "Versión original", html: landing.html, css: landing.css, js: landing.js,
+        } });
+        if (!parent) throw new Error("stale_revision");
+        const revision = await tx.sectionRevision.create({ data: {
+          id: revisionId, savedLandingId: landing.id, revision: proposal.baseRevision + 1,
+          parentRevisionId: parent?.id ?? null, sectionId: null, summary: documentCode.summary as string,
+          html: documentCode.html as string, css: documentCode.css as string, js: documentCode.js as string,
+        } });
+        const updatedProposal = await tx.sectionEditProposal.updateMany({ where: { id: proposal.id, status: "pending" }, data: { status: "applied", revisionId } });
+        if (updatedProposal.count !== 1) throw new Error("proposal_consumed");
+        return revision;
+      });
+      await recordTraceStep(landing.traceId ?? undefined, {
+        eventType: "revision", phase: "code-edit-apply", title: `Revisión ${result.revision} aplicada · código completo`,
+        output: { proposalId: proposal.id, revisionId, revision: result.revision, summary: documentCode.summary }, decisionSummary: documentCode.summary,
+        references: [{ kind: "landing", id: landing.id, label: landing.title }, { kind: "revision", id: revisionId, label: `Revisión ${result.revision}` }],
+      }).catch(() => undefined);
+      return NextResponse.json({ revision: result.revision, revisionId, html: documentCode.html, css: documentCode.css, js: documentCode.js, summary: documentCode.summary });
+    }
     const patch = sectionPatchSchema.parse(JSON.parse(proposal.patchJson));
     if (patch.sectionId !== proposal.sectionId) throw new Error("La propuesta apunta a otra sección.");
     const currentSection = extractSection(landing.html, proposal.sectionId);

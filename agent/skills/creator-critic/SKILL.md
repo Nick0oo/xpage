@@ -1,42 +1,51 @@
 ---
 name: creator-critic
-description: Revisa una propuesta con hallazgos observables y produce una revisión concreta.
+description: Use when a plan or landing needs a bounded, evidence-based review followed by concrete repairs. Inspect brief fit, complete content, visual hierarchy, truthful claims, accessible behavior and internal references; report only observable defects and matched changes. Use whenever selected, without claiming a visual test that was not run.
 ---
-# Creador y crítico · v1.1.0
+# Creador y crítico · v2.0.0
 
 ## Propósito
-Mejora el plan mediante una propuesta seguida de una revisión verificable, sin exponer razonamiento privado.
+
+Construye una propuesta deliberada, encuentra defectos que se puedan ubicar en el artefacto y aplica reparaciones proporcionadas. La crítica no es una opinión sobre gusto ni una narración de pensamiento privado: debe permitir que otra persona localice qué cambió y cómo se comprueba.
+
+## Referencias locales
+
+Si existe `read_seed_reference`, carga `frontend-design`, `web-prototype-checklist` y `system-prompt-excerpts` al revisar una landing; usa `web-prototype-layouts` solo si necesitas resolver un patrón. El material local es una selección atribuida de OpenDesign, no un plugin ejecutable. Usa Totality solo como ejemplo puntual cuando el brief justifique esa gramática; no es estilo predeterminado. Indica nombres realmente leídos en el artifact.
 
 ## Procedimiento
-1. Formula una propuesta breve de dirección y recorrido.
-2. Audita el plan frente al brief, DesignDNA, método seleccionado, accesibilidad y fuentes.
-3. Anota de dos a cinco hallazgos específicos: elemento, criterio afectado y efecto para la persona usuaria.
-4. Cambia secciones, copy, jerarquía o restricciones para resolver cada hallazgo.
-5. Revisa que los cambios no introduzcan claims, fricción o inconsistencias nuevas.
 
-## Entrega y verificación
-Completa `creatorCritic.proposal`, `findings` y `revision` con resúmenes de resultado, no cadena de pensamiento. Cada hallazgo debe corresponder a un cambio o explicar por qué no aplica. No afirmes mejora de conversión sin experimento.
+1. **Registra la propuesta inicial** en una frase con oferta, audiencia, acción y principio compositivo. Evalúa el artefacto recibido (o el plan recién elaborado), no un rediseño imaginado.
+2. **Recorre criterios con evidencia:**
+   - Brief: ¿oferta, público y acción son comprensibles? ¿cada claim tiene estado/fuente?
+   - Contenido: compara cantidades y `requiredItems` con su copy/destino; cuenta las piezas completas.
+   - Recorrido: asigna tarea distinta a cada sección; comprueba orden, CTA real y anclas.
+   - Diseño: relaciona `designDNA` con hero, una sección interna y cierre; verifica variación que sirva a las tareas.
+   - Uso: busca encabezados semánticos, texto alternativo, foco/teclado, contraste declarado como requisito, movimiento reducido y contenido disponible sin JS.
+   - Integridad: comprueba IDs únicos, correspondencia entre secciones/slots/aportes, placeholders, imports/remotos o funciones no soportadas.
+3. **Prioriza de dos a cinco hallazgos.** Por cada uno escribe ubicación, evidencia del brief/plan/código, regla afectada, efecto concreto y cambio. Atiende primero omisión de contenido, claims o acciones falsos y barreras de acceso; después jerarquía y repetición.
+4. **Repara el mismo artefacto.** Cambia el plan, copy, tokens, composición o restricciones para corregir cada hallazgo. Si un requisito no puede satisfacerse con la información recibida, marca el dato pendiente en lugar de inventarlo.
+5. **Vuelve a comprobar solo el defecto afectado.** Cuenta de nuevo los items corregidos, valida que los IDs sigan relacionados y que la revisión no cree una contradicción. Una inspección del plan/código no equivale a render, test con usuarios ni medición de contraste.
+
+## Artefacto y contrato
+
+Llena `creatorCritic.proposal`, `findings` y `revision` cuando el esquema lo admita. Incluye un resumen de la propuesta; `findings` debe contener de dos a cinco tarjetas breves si hay problemas reales (no inventes defectos para llegar al mínimo); `revision` nombra qué cambios quedaron. Si no hay de dos a cinco defectos defendibles, registra los que existan y explica por qué no se añaden más. Mantén la ficha de contribución del método dentro de `TechniqueContribution`:
+
+```text
+proposal: intención y recorrido inicial
+findings: [ubicación | evidencia | criterio | efecto | cambio]
+revision: artefacto/campos actualizados y resultado de la re-comprobación textual
+scope: plan, HTML/código o render realmente inspeccionado
+references_read: lista real o “sin referencias locales”
+```
 
 ## Ejemplo
-Hallazgo: el CTA principal aparece antes de explicar qué incluye la oferta; revisión: añade una sección breve de alcance antes del CTA.
 
-## Protocolo de crítica acotada
-Prioriza como máximo cinco problemas. Por hallazgo anota elemento localizado, criterio verificable, efecto y corrección. Ordena así: datos/entregables ausentes; acción falsa; barrera de lectura o acceso; inconsistencia de jerarquía; repetición estética. No listes preferencias personales como defectos.
+Hallazgo: `section.practice.copy` anuncia cinco ejercicios y enumera tres; el plan exige un inventario de cinco piezas. Cambio: añadir dos originales, mantener exactamente cinco en `requiredItems` y repetirlos en el copy; recontar ambos campos. No describirlo como “mayor conversión”.
 
-## Crítica del sistema visual
-Compara hero, sección más densa y cierre contra DesignDNA: ¿el motivo persiste?, ¿la composición cambia por función?, ¿el contraste separa contenido de decoración?, ¿hay un recurso remoto o una imagen que prometa una función no descrita? Propón el menor cambio capaz de corregir un problema real.
+## Revisión del método
 
-## Evidencia
-Este método revisa el plan textual y las decisiones visibles descritas. Solo reporta inspección de captura/render, responsive real o medición si se ejecutó esa comprobación. No uses palabras como “convierte más” como resultado sin experimento.
-## Rúbrica reproducible
-Para cada hallazgo completa una tarjeta compacta: ubicación; evidencia del brief o plan; regla incumplida; efecto visible; corrección; comprobación posterior.
-- Brief: la oferta se puede nombrar en una frase y no tiene claims sin fuente.
-- Contenido: compara lista solicitada con los textos reales y el destino de sección. Cuenta entradas, no menciones.
-- Estructura: cada ID del plan está representado; los títulos no repiten la misma idea; CTA y anclas existen.
-- Visual: el motivo de DesignDNA aparece en formas distintas apropiadas a las tareas; al menos dos composiciones tienen razón funcional.
-- Acceso: headings en orden, texto alternativo informativo, foco visible, estado no dependiente del color y movimiento reducido.
-Prioriza omisiones y acciones falsas antes de preferencias visuales. Resuelve cinco problemas como máximo; si quedan más, corrige primero los que impiden entender o usar la página.
-No uses «mejor», «más bonito» o «premium» como hallazgo sin señalar elemento y criterio observables.
-Una observación sin reparación se registra solo cuando el cambio dañaría un requisito; explica ese bloqueo concreto.
-Después de reparar, repite únicamente el chequeo ligado al defecto. No describas render, contraste medido ni comportamiento probado si solo leíste el plan.
-Ejemplo: «La práctica anuncia cinco trabalenguas pero la sección solo contiene tres; agregar dos piezas completas al inventario y al copy antes de construir».
+- Todo hallazgo apunta a texto o estructura existente y a una regla explícita.
+- Cada cambio corrige el hallazgo identificado; no se agregan preferencias como obligaciones.
+- Toda corrección conserva la oferta, requisitos, restricciones y cambios previos del usuario.
+- El resumen distingue revisión de texto/código, comprobación automática y render real.
+- El resultado final evita métricas de CRO o accesibilidad que no se hayan medido.

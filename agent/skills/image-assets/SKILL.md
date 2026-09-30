@@ -1,43 +1,63 @@
 ---
 name: image-assets
-description: Especifica imágenes que apoyan el mensaje y su lugar exacto en la página.
+description: Use when a landing brief calls for a purposeful still image, asset specification, or real image search. Create section-linked image slots with composition, alt text, searchable queries, and selection criteria that the XPage media workspace can use. Describe candidates only after a real search returns them.
 ---
-# Activos de imagen · v1.1.0
+# Activos de imagen · v2.0.0
 
-## Propósito
-Usar imágenes con una función comunicativa concreta, sin recurrir a decoración genérica ni afirmar que un archivo ya existe.
+## Propósito y límite
+
+Especifica qué imagen ayudaría a entender una sección, cómo buscar/seleccionar una adecuada y cómo debe encajar en la composición. Esta skill no genera archivos ni afirma que un activo esté disponible, autorizado o seleccionado. La búsqueda y selección se hacen después desde las herramientas reales de medios.
+
+## Referencias locales
+
+Cuando `read_seed_reference` esté disponible, consulta `frontend-design`, `web-prototype-layouts` y `web-prototype-checklist`; para construir HTML consulta además `web-prototype-skill`. Estas referencias fijas y atribuidas de OpenDesign orientan dirección visual, jerarquía del recorte y revisión; no aportan imágenes o plugins ejecutables. Menciona solo las referencias efectivamente leídas. Evita usar la muestra Totality si no tiene relación clara con el brief.
+
+## Cuándo aplicarla
+
+- El método `image-assets` fue seleccionado o la sección necesita información visual que el copy, diagrama o tipografía no expresan con igual claridad.
+- Se conoce la tarea y el lugar que ocuparía el activo en el recorrido.
+- Si la imagen es meramente decorativa, redundante o se usaría como prueba no proporcionada, recomienda omitirla.
 
 ## Procedimiento
-1. Determina qué idea o acción requiere apoyo visual y en qué sección.
-2. Describe sujeto, acción, contexto, composición, luz, paleta, proporción y espacio para texto.
-3. Evita logos, texto incrustado, marcas y elementos que el brief no autoriza.
-4. Define texto alternativo que transmita el propósito; marca decoración como tal.
-5. Si una portada es útil, deja visible el costo o uso del proveedor configurado y conserva una alternativa sin imagen.
 
-## Entrega y verificación
-Completa slots en `mediaSlots`, vinculados a secciones, con descripción suficientemente concreta para generación o búsqueda. Describe fuente/modelo solo cuando la operación ocurra; no declares licencia ni archivo disponible de antemano.
+1. **Elige la tarea visual.** Escribe qué debe permitir ver o comparar la imagen y qué dato sigue explicado en texto. No uses “hacerlo atractivo” como único propósito.
+2. **Ancla el slot.** Asigna un ID corto y único y vincúlalo a una sección existente mediante `mediaSlotIds`. Nunca inventes una sección destino ni reutilices un slot en otras secciones.
+3. **Define la escena.** Completa sujeto, acción, contexto, punto de atención, encuadre, distancia/perspectiva, luz y relación cromática con DesignDNA. Distingue una propuesta de escena de una característica verificada del producto.
+4. **Planifica proporción/recorte.** Elige una relación de aspecto (por ejemplo `4:3`, `3:2`, `1:1`, `16:9`) y describe la zona que debe sobrevivir a recortes de móvil. Deja espacio para texto solo si la composición lo pide; evita incrustar texto en la imagen.
+5. **Crea consultas de búsqueda.** Incluye una a tres frases concretas, simples y buscables: sujeto/acción + contexto; puede incluir una variante de encuadre o luz. No metas keywords de marca que filtren por algo no disponible ni llames “candidatos” a estas consultas. Son valores iniciales para la búsqueda real de imágenes que ofrece XPage.
+6. **Escribe criterio de selección.** Indica qué observar al comparar resultados: coincidencia de sujeto/acción, contexto no engañoso, orientación/recorte, foco, paleta, ausencia de texto/logos y legibilidad junto al copy. Para una oferta cuyo producto no se ve, no simules una captura.
+7. **Redacta texto alternativo contextual.** Si la imagen transmite contenido, describe esa información en una frase concisa, sin empezar por “imagen de”. Si es puro adorno y no añade información, indica `altText: ""` cuando el contrato de medios lo permita; en el contrato actual, explica en `purpose` que puede omitirse y acuerda alt breve descriptivo en el slot requerido. No repitas el párrafo adyacente.
+8. **Deja fallback listo.** Describe el gesto visual local (CSS/SVG/diagrama) o el copy que mantiene la sección comprensible si no hay imagen seleccionada. No dejes un rectángulo vacío.
+
+## Artefacto editable
+
+En `TechniqueContribution.artifact`, registra una ficha por slot de imagen con este contrato:
+
+```text
+slot_id / section_id:
+purpose: información que aporta y relación con el copy
+scene: sujeto, acción y contexto
+framing: foco, plano, orientación, recorte móvil y espacio para texto
+lighting_or_palette: luz y relación con DesignDNA
+aspect_ratio: proporción elegida y motivo
+alt_text: texto alternativo final, o nota de omisión decorativa
+search_queries: 1–3 consultas iniciales para búsqueda real
+selection_criteria: criterios concretos para aceptar/descartar resultados
+fallback: diagrama/recurso local que conserva sentido sin el activo
+status: specification-only; no existe candidato hasta ejecutar búsqueda
+references_read: nombres leídos o “sin referencias locales”
+```
+
+Los slots usan el ID de `mediaSlots`; `section.mediaSlotIds` repite ese ID. Las consultas y criterios pertenecen al artifact y también deben reflejarse en el prompt editable para sobrevivir a la combinación. Al hacer una búsqueda posterior, el workspace muestra solo candidatos reales con proveedor, autor, fuente/crédito y licencia devuelta por la API; la decisión del usuario conserva esa procedencia.
 
 ## Ejemplo
-Para explicar preparación: manos midiendo ingredientes sobre una mesa de trabajo, encuadre lateral, luz suave, sin texto ni envases con marca.
 
-## Brief visual de cada slot
-Registra seis piezas legibles: qué ve la persona; qué acción ocurre; dónde/cuándo sucede; relación sujeto-fondo y espacio negativo; fuente de luz/temperatura; recorte y proporción. Si una no se deduce, propón una decisión y márcala como dirección creativa. No uses palabras de stock (“premium”, “cinemático”) en lugar de una escena describible.
+Para explicar una sesión de ajuste de bicicleta: `subject=manos ajustando freno de bicicleta urbana en un taller realista`; consulta inicial `mechanic adjusting bicycle brake in small workshop`; criterio = que se vea el cable y la pinza en acción, recorte horizontal con manos visibles, sin marca identificable ni interfaz ficticia. Fallback: diagrama CSS/SVG de la palanca y la pinza. Esto no afirma que exista el archivo.
 
-El texto alternativo explica la información del medio dentro de la sección. Si es decorativo, alt vacío solo cuando el HTML lo permita y el contexto ya comunique lo mismo. El slot incluye un `sectionId` y el contenedor HTML usa `data-xpage-slot`; no insertes texto en la imagen.
+## Revisión
 
-## Prueba de necesidad
-Pregunta qué se vuelve más claro con el recurso y si el motivo ya se comunica mejor mediante SVG/CSS, tabla o copy. Evita pedir una imagen por cada sección. Alterna escala y tratamiento solo cuando sostenga el sistema visual; no afirmes disponibilidad del archivo, autor, procedencia o permiso.
-## Ficha completa de recurso
-Antes de proponer un slot, contesta:
-1. Qué información concreta comunica que el texto no comunica igual.
-2. En qué sección aparece y qué afirmación respalda.
-3. Qué sujeto realiza qué acción en qué entorno.
-4. Qué distancia, ángulo, escala y espacio negativo permiten leer la escena.
-5. Qué luz, contraste y temperatura conectan con DesignDNA.
-6. Qué proporción, recorte y texto alternativo corresponden al destino.
-Si no hay una respuesta útil a las preguntas 1 y 2, retira el slot y resuelve con copy, diagrama o SVG CSS.
-Un slot es una especificación, no un activo descargado. No atribuyas autoría, origen, licencia ni disponibilidad sin fuente.
-Evita texto generado incrustado, logotipos imaginarios, marcas de agua y pequeños detalles que competirían con el texto real de la página.
-Un solo recurso focal puede sostener el hero y un esquema secundario puede explicar el proceso; no añadas una imagen por sección como decoración.
-El texto alternativo nombra información visual relevante y no empieza con «imagen de» salvo que ese dato importe.
-Describe colores como dirección ligada a roles visuales, pero no conviertas la imagen en una segunda paleta de marca.
+- El slot apoya una tarea visible de su sección y tiene un ID referido correctamente.
+- Escena, orientación y encuadre sirven al contenido; no fabrican evidencia del negocio.
+- Hay consultas buscables y criterios de selección independientes, no una afirmación de resultados.
+- Alt text describe el dato visual sin duplicar copy; la ausencia del activo no vacía la sección.
+- La elección futura permanece vinculada a candidato, autor/fuente y licencia reales.
