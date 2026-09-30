@@ -16,10 +16,10 @@ function statusLabel(status: string) {
 }
 
 function processStatus(traces: TraceListItem[]) {
-  if (traces.some((trace) => trace.status === "failed" || trace.failedStepCount > 0)) return "failed";
-  if (traces.every((trace) => trace.status === "completed")) return "completed";
-  if (traces.some((trace) => trace.status === "prompt-ready")) return "prompt-ready";
-  return "active";
+  const latest = [...traces].sort((a, b) =>
+    b.updatedAt.localeCompare(a.updatedAt) || b.createdAt.localeCompare(a.createdAt),
+  )[0];
+  return latest?.status ?? "active";
 }
 
 function groupProcesses(traces: TraceListItem[]): TraceProcess[] {

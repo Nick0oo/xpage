@@ -61,7 +61,9 @@ function stepOutput(step: { outputJson: string | null; outputText: string | null
   return null;
 }
 
-function normalizeDraft(trace: {
+const DRAFT_STEP_PHASES = ["landing-generation", "combined-design-plan"] as const;
+
+type DraftTraceRecord = {
   id: string;
   category: string;
   title: string;
@@ -72,6 +74,7 @@ function normalizeDraft(trace: {
   sourceTraceId: string | null;
   createdAt: Date;
   steps: Array<{
+    phase: string;
     outputJson: string | null;
     outputText: string | null;
     userPrompt: string | null;
@@ -80,8 +83,41 @@ function normalizeDraft(trace: {
     status: string;
   }>;
   landings: Array<{ id: string; title: string }>;
-}): GenerationDraft | null {
-  const context = record(parseJson(trace.contextJson)) ?? {};
+};
+
+function contextWithLineage(trace: DraftTraceRecord, tracesById: Map<string, DraftTraceRecord>) {
+  const relatedIds = [trace.rootTraceId, trace.sourceTraceId, trace.parentTraceId]
+    .filter((id): id is string => Boolean(id) && id !== trace.id);
+  const sourcePromptTraceId = record(parseJson(trace.contextJson))?.sourcePromptTraceId;
+  if (typeof sourcePromptTraceId === "string" && sourcePromptTraceId !== trace.id) relatedIds.push(sourcePromptTraceId);
+
+  const related = [...new Set(relatedIds)].map((id) => tracesById.get(id)).filter((item): item is DraftTraceRecord => Boolean(item));
+  const context: Record<string, unknown> = {};
+  for (const item of [...related, trace]) {
+    const itemContext = record(parseJson(item.contextJson));
+    if (!itemContext) continue;
+    for (const [key, value] of Object.entries(itemContext)) {
+      if (value !== null && value !== undefined) context[key] = value;
+    }
+  }
+
+  if (!record(context.designPlan)) {
+    const planSource = [trace, ...related].find((item) =>
+      [...item.steps].reverse().some((step) => step.phase === "combined-design-plan" && record(parseJson(step.outputJson))),
+    );
+    const planStep = planSource && [...planSource.steps].reverse().find((step) => step.phase === "combined-design-plan" && record(parseJson(step.outputJson)));
+    const plan = record(planStep ? parseJson(planStep.outputJson) : null);
+    if (plan) {
+      context.designPlan = plan;
+      context.designPlanTraceId = planSource?.id;
+    }
+  }
+
+  return context;
+}
+
+function normalizeDraft(trace: DraftTraceRecord, tracesById: Map<string, DraftTraceRecord>): GenerationDraft | null {
+  const context = contextWithLineage(trace, tracesById);
   const candidates = trace.steps.map((step) => ({ step, output: stepOutput(step) })).filter(
     (candidate): candidate is { step: (typeof trace.steps)[number]; output: NonNullable<ReturnType<typeof stepOutput>> } => candidate.output !== null,
   );
@@ -135,14 +171,15 @@ export async function listGenerationDrafts() {
     orderBy: { createdAt: "desc" },
     include: {
       steps: {
-        where: { phase: "landing-generation" },
+        where: { phase: { in: [...DRAFT_STEP_PHASES] } },
         orderBy: { sequence: "asc" },
       },
       landings: { select: { id: true, title: true } },
     },
   });
+  const tracesById = new Map(traces.map((trace) => [trace.id, trace as DraftTraceRecord]));
   return traces
-    .map(normalizeDraft)
+    .map((trace) => normalizeDraft(trace, tracesById))
     .filter((draft): draft is GenerationDraft => draft !== null && draft.savedLandingId === null);
 }
 
@@ -151,11 +188,25 @@ export async function getGenerationDraft(id: string) {
     where: { id },
     include: {
       steps: {
-        where: { phase: "landing-generation" },
+        where: { phase: { in: [...DRAFT_STEP_PHASES] } },
         orderBy: { sequence: "asc" },
       },
       landings: { select: { id: true, title: true } },
     },
   });
-  return trace ? normalizeDraft(trace) : null;
+  if (!trace) return null;
+
+  const relatedIds = [trace.rootTraceId, trace.sourceTraceId, trace.parentTraceId]
+    .filter((relatedId): relatedId is string => Boolean(relatedId) && relatedId !== trace.id);
+  const sourcePromptTraceId = record(parseJson(trace.contextJson))?.sourcePromptTraceId;
+  if (typeof sourcePromptTraceId === "string" && sourcePromptTraceId !== trace.id) relatedIds.push(sourcePromptTraceId);
+  const relatedTraces = relatedIds.length ? await prisma.generationTrace.findMany({
+    where: { id: { in: [...new Set(relatedIds)] } },
+    include: {
+      steps: { where: { phase: { in: [...DRAFT_STEP_PHASES] } }, orderBy: { sequence: "asc" } },
+      landings: { select: { id: true, title: true } },
+    },
+  }) : [];
+  const tracesById = new Map([[trace.id, trace as DraftTraceRecord], ...relatedTraces.map((item) => [item.id, item as DraftTraceRecord] as const)]);
+  return normalizeDraft(trace, tracesById);
 }
