@@ -5,6 +5,7 @@ export const pexelsMediaSchema = z.object({
   type: z.enum(["image", "video"]),
   previewUrl: z.string().url(),
   sourceUrl: z.string().url(),
+  mediaUrl: z.string().url().optional(),
   creditUrl: z.string().url(),
   author: z.string().min(1),
   altText: z.string(),

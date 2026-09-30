@@ -2,6 +2,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { Brief } from "@/lib/schemas";
+import { designSystems } from "@/lib/design-systems/catalog";
 
 type BriefFormProps = {
   brief: Brief;
@@ -122,6 +123,7 @@ export function BriefForm({ brief, errors, disabled, onChange }: BriefFormProps)
           <SelectField label="Variedad" value={brief.variety} onChange={(value) => onChange("variety", value)} disabled={disabled} options={[["sutil", "Exploración sutil"], ["equilibrada", "Equilibrada"], ["atrevida", "Muy distinta"]]} />
           <SelectField label="Movimiento" value={brief.movement} onChange={(value) => onChange("movement", value)} disabled={disabled} options={[["reducido", "Mínimo"], ["moderado", "Solo cuando explica algo"], ["dinamico", "Dinámico, con alternativa reducida"]]} />
           <SelectField label="Densidad" value={brief.density} onChange={(value) => onChange("density", value)} disabled={disabled} options={[["aireada", "Aireada"], ["equilibrada", "Equilibrada"], ["densa", "Densa y editorial"]]} />
+          <SelectField label="Sistema de diseño" value={brief.designSystemId ?? ""} onChange={(value) => onChange("designSystemId", value)} disabled={disabled} options={[["", "Dejar que Eve elija"], ...designSystems.map((recipe) => [recipe.id, recipe.name] as const)]} />
         </div>
       </details>
     </div>

@@ -16,6 +16,7 @@ type SearchItem = {
   type: "image" | "video";
   previewUrl: string;
   sourceUrl: string;
+  mediaUrl?: string;
   creditUrl: string;
   author: string;
   altText: string;
@@ -27,6 +28,7 @@ type SearchItem = {
 type Props = {
   brief: Brief;
   modelChoice: ModelChoice;
+  modelChoiceConfirmed?: boolean;
   traceId: string;
   savedLandingId: string | null;
   designPlan: DesignPlan | null;
@@ -34,7 +36,7 @@ type Props = {
   onAssetAdded: (asset: MediaAssetRecord, html: string) => void;
 };
 
-export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, designPlan, assets, onAssetAdded }: Props) {
+export function MediaWorkspace({ brief, modelChoice, modelChoiceConfirmed = true, traceId, savedLandingId, designPlan, assets, onAssetAdded }: Props) {
   const [type, setType] = useState<"image" | "video">("image");
   const [query, setQuery] = useState(brief.topic);
   const [searchedQuery, setSearchedQuery] = useState(brief.topic);
@@ -48,12 +50,24 @@ export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, de
   const [slotId, setSlotId] = useState("");
   const [altText, setAltText] = useState("");
   const [costAccepted, setCostAccepted] = useState(false);
+  const [previewId, setPreviewId] = useState<number | null>(null);
 
   const availableSlots = designPlan?.mediaSlots ?? [];
   const availableSections = designPlan?.sections.filter((section) => section.mediaSlotIds.some((id) => availableSlots.some((slot) => slot.id === id && slot.type === type))) ?? [];
   const selectedSection = availableSections.find((section) => section.id === sectionId) ?? availableSections[0];
   const slotsForSection = selectedSection ? availableSlots.filter((slot) => slot.type === type && selectedSection.mediaSlotIds.includes(slot.id)) : [];
   const selectedSlot = slotsForSection.find((slot) => slot.id === slotId) ?? slotsForSection[0];
+  const slotSearchQueries = selectedSlot && "searchQueries" in selectedSlot
+    ? ((selectedSlot as typeof selectedSlot & { searchQueries?: string[] }).searchQueries ?? [])
+    : [];
+  const selectionCriteria = selectedSlot && "selectionCriteria" in selectedSlot
+    ? (selectedSlot as typeof selectedSlot & { selectionCriteria?: string }).selectionCriteria
+    : undefined;
+
+  function useSuggestedQuery(value: string) {
+    setQuery(value);
+    setItems([]);
+  }
 
   async function search() {
     if (query.trim().length < 2) return setError("Escribe al menos dos caracteres para buscar.");
@@ -112,7 +126,7 @@ export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, de
   }
 
   async function generateImage() {
-    if (!savedLandingId || !selectedSection || !selectedSlot || !costAccepted) return;
+    if (!modelChoiceConfirmed || !savedLandingId || !selectedSection || !selectedSlot || !costAccepted) return;
     setGenerating(true);
     setError("");
     try {
@@ -159,7 +173,7 @@ export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, de
           </select>
         </div>
       </div>
-      {selectedSlot ? <p className="text-xs leading-5 text-muted-foreground">{selectedSlot.framing} · {selectedSlot.aspectRatio} · Texto alternativo: {selectedSlot.altText}</p> : null}
+      {selectedSlot ? <div className="space-y-1 rounded-lg bg-muted/50 p-3 text-xs leading-5 text-muted-foreground"><p>{selectedSlot.purpose}: {selectedSlot.subject}. {selectedSlot.framing} · {selectedSlot.aspectRatio} · Texto alternativo: {selectedSlot.altText}</p>{selectionCriteria ? <p><strong className="text-foreground">Criterio de selección:</strong> {selectionCriteria}</p> : null}</div> : null}
       <div className="space-y-1.5">
         <Label htmlFor="media-alt">Texto alternativo</Label>
         <Input id="media-alt" value={altText} onChange={(event) => setAltText(event.target.value)} placeholder={selectedSlot?.altText ?? "Describe lo que importa en la imagen"} maxLength={300} />
@@ -174,6 +188,7 @@ export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, de
         <Input aria-label={`Buscar ${type === "image" ? "fotos" : "videos"} en Pexels`} value={query} onChange={(event) => { setQuery(event.target.value); setItems([]); }} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void search(); } }} maxLength={120} />
         <Button type="button" variant="outline" onClick={() => void search()} disabled={loading || query.trim().length < 2} aria-label="Buscar en Pexels">{loading ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Search aria-hidden="true" />} Buscar</Button>
       </div>
+      {slotSearchQueries.length ? <div className="space-y-1"><p className="text-[11px] font-medium text-muted-foreground">Consultas sugeridas para este espacio</p><div className="flex flex-wrap gap-1.5">{slotSearchQueries.map((suggestion) => <button key={suggestion} type="button" onClick={() => useSuggestedQuery(suggestion)} className="rounded-full border border-border bg-background px-2.5 py-1 text-[11px] text-foreground hover:border-primary/40">{suggestion}</button>)}</div></div> : null}
       <a href="https://www.pexels.com" target="_blank" rel="noreferrer" className="inline-flex text-xs font-medium text-primary underline underline-offset-4">Fotos y vídeos de Pexels · ver licencias y autores</a>
 
       {type === "image" && savedLandingId ? (
@@ -182,7 +197,8 @@ export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, de
           <div className="mt-3 space-y-3">
             <p className="text-xs leading-5 text-muted-foreground">Usa el modelo de imagen configurado por el proyecto. El costo depende de ese proveedor y modelo; XPage no cobra ni genera nada hasta que confirmes.</p>
             <label className="flex items-start gap-2 text-xs leading-5"><input type="checkbox" checked={costAccepted} onChange={(event) => setCostAccepted(event.target.checked)} className="mt-1 size-4 accent-primary" />Confirmo que esta llamada puede generar un cargo según la configuración de OpenRouter.</label>
-            <Button type="button" size="sm" onClick={() => void generateImage()} disabled={!costAccepted || generating || !selectedSlot}>
+            {!modelChoiceConfirmed ? <p role="status" className="text-xs leading-5 text-amber-800">Confirma el modelo en los datos del borrador antes de generar una imagen.</p> : null}
+            <Button type="button" size="sm" onClick={() => void generateImage()} disabled={!modelChoiceConfirmed || !costAccepted || generating || !selectedSlot}>
               {generating ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}{generating ? "Generando imagen…" : "Generar y colocar imagen"}
             </Button>
           </div>
@@ -193,11 +209,11 @@ export function MediaWorkspace({ brief, modelChoice, traceId, savedLandingId, de
       {items.length ? <ul className="grid gap-3 sm:grid-cols-2">{items.map((item) => {
         const alreadyUsed = assets.some((asset) => asset.providerAssetId === String(item.id) && asset.provider === "pexels");
         return <li key={`${item.type}-${item.id}`} className="overflow-hidden rounded-xl border border-border">
-          {/* Pexels preview */}
-          <img src={item.previewUrl} alt={item.altText} loading="lazy" className="aspect-video w-full bg-muted object-cover" />
+          {item.type === "video" && previewId === item.id && item.mediaUrl ? <video controls autoPlay muted playsInline poster={item.previewUrl} className="aspect-video w-full bg-muted object-cover"><source src={item.mediaUrl} type="video/mp4" /></video> : <img src={item.previewUrl} alt={item.altText} loading="lazy" className="aspect-video w-full bg-muted object-cover" />}
           <div className="space-y-2 p-3">
             <p className="truncate text-sm font-medium">{item.type === "image" ? "Foto" : `Video · ${item.durationSeconds ?? 0}s`} por <a href={item.creditUrl} target="_blank" rel="noreferrer" className="text-primary underline">{item.author}</a></p>
             <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-muted-foreground underline">Ver en Pexels</a>
+            {item.type === "video" && item.mediaUrl ? <Button type="button" size="sm" variant="ghost" className="w-full" onClick={() => setPreviewId((current) => current === item.id ? null : item.id)}>{previewId === item.id ? "Cerrar vista del video" : "Previsualizar video"}</Button> : null}
             <Button type="button" size="sm" variant="outline" className="w-full" disabled={!savedLandingId || !selectedSlot || selectingId !== null || loading || alreadyUsed} onClick={() => void addStock(item)}>
               {selectingId === item.id ? <LoaderCircle className="animate-spin" aria-hidden="true" /> : null}{alreadyUsed ? "Ya está en esta landing" : selectingId === item.id ? "Descargando…" : `Usar en ${selectedSection?.role ?? "sección"}`}
             </Button>
