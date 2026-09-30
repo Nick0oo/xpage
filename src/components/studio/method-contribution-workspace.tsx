@@ -119,7 +119,7 @@ export function MethodContributionWorkspace({ runs, combining, disabled = false,
                       </label>
                       <label className="space-y-1.5 text-xs font-semibold text-muted-foreground">
                         Artefacto visible
-                        <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={3000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
+                        <Textarea aria-label={`Artefacto de ${technique.name}`} value={contribution.artifact} onChange={(event) => onEdit(run.techniqueId, "artifact", event.target.value)} onBlur={() => onCommit(run)} disabled={editDisabled} maxLength={technique.id === "seed-strings" ? 6000 : 3000} className="min-h-28 resize-y text-sm font-normal leading-5 text-foreground" />
                       </label>
                     </div>
                     <details className="rounded-xl border border-border bg-muted/20 p-3">

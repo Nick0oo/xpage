@@ -53,7 +53,7 @@ Las técnicas no son ocho estilos visuales prefijados. Cada una introduce una de
 
 | Método | Aporte esperado |
 | --- | --- |
-| **Cadenas semilla** | Motivo, paleta, tipografía y reglas que mantienen una identidad reconocible. |
+| **Cadenas semilla** | Cadena arbitraria para explorar rutas válidas y elegir una dirección concreta; dossier editable con tokens, composiciones, inventario e interacción. |
 | **Prompts ambiciosos** | Recorrido narrativo que conecta motivaciones, preguntas y acción. |
 | **Creador y crítico** | Propuesta inicial, problemas observables y ajustes justificados. |
 | **Activos de imagen** | Imágenes con propósito, composición, texto alternativo y sección de destino. |
@@ -65,6 +65,8 @@ Las técnicas no son ocho estilos visuales prefijados. Cada una introduce una de
 Las instrucciones de Eve están en [`agent/instructions.md`](agent/instructions.md); cada método tiene su propia skill en [`agent/skills/`](agent/skills/) y la síntesis usa [`combine`](agent/skills/combine/SKILL.md). El diseño parte de seis gramáticas adaptables al brief, más composiciones de sección y un plan `DesignDNA`: consulta la [guía de diseño y atribución](src/lib/design-systems/README.md). XPage investigó el flujo de [OpenDesign](https://github.com/nexu-io/open-design) y adaptó ideas de dirección, composición y crítica a sus contratos; no integra el runtime ni el catálogo completo de plugins de OpenDesign.
 
 El brief manda sobre la receta visual. Cuando pide una cantidad concreta de contenido, XPage la lleva al plan y comprueba que los elementos aparezcan en las secciones del HTML. Si faltan, intenta una reparación acotada y muestra el error si el resultado sigue incompleto.
+
+La [skill de Cadenas semilla v2](agent/skills/seed-strings/SKILL.md) distingue el método [String Seed of Thought](https://arxiv.org/abs/2510.21150) de su adaptación a diseño web. Incluye [materiales de OpenDesign copiados y atribuidos](agent/skills/seed-strings/references/open-design/README.md), que Eve puede leer por fase mediante `read_seed_reference`. La ruta elegida y las ediciones de la persona se conservan durante la combinación y la construcción del HTML; la cadena no se interpreta como una identidad de marca ni como un generador de resultados deterministas.
 
 ## Studio: edición y exportación
 
