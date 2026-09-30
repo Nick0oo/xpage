@@ -2,7 +2,11 @@ import { OPEN_DESIGN_REFERENCE_IDS, readLocalReference, type OpenDesignReference
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
-const referenceIds = [...OPEN_DESIGN_REFERENCE_IDS, "string-seed-of-thought"] as [OpenDesignReferenceId, ...OpenDesignReferenceId[]];
+const referenceIds: [OpenDesignReferenceId, ...OpenDesignReferenceId[]] = [
+  OPEN_DESIGN_REFERENCE_IDS[0]!,
+  ...OPEN_DESIGN_REFERENCE_IDS.slice(1),
+  "string-seed-of-thought",
+];
 
 export default defineTool({
   description: "Lee referencias locales fijadas y atribuidas de OpenDesign para las skills de XPage. Devuelve solo documentos del catálogo allowlist; no importa plugins ni lee rutas proporcionadas por el usuario.",

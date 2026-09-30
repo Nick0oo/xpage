@@ -97,7 +97,7 @@ export function reorderSections(html: string, orderedIds: string[]) {
 
 export function getDocumentMediaMarkup(html: string) {
   const fragment = parseFragment(html);
-  return descendants(fragment).filter((element) => ["img", "video", "source"].includes(element.tagName)).map(serializeOuter);
+  return descendants(fragment).filter((element) => ["img", "video", "source"].includes(element.tagName)).map((element) => serializeOuter(element));
 }
 
 export function getDocumentSlotIds(html: string) {
