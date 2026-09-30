@@ -20,6 +20,17 @@ export const sectionEditProposalRequestSchema = z.object({
   modelChoice: z.enum(MODEL_CHOICES).default(DEFAULT_MODEL_CHOICE),
 }).refine((input) => new Set(input.techniqueIds).size === input.techniqueIds.length, "No repitas técnicas en la selección.");
 
+export const codeEditProposalRequestSchema = z.object({
+  savedLandingId: z.string().uuid(),
+  baseRevision: z.number().int().nonnegative(),
+  html: z.string().min(1).max(80_000),
+  css: z.string().max(80_000),
+  js: z.string().max(40_000),
+  summary: z.string().trim().min(4).max(600),
+  modelChoice: z.enum(MODEL_CHOICES).optional(),
+  techniqueIds: z.array(techniqueIdSchema).max(TECHNIQUE_IDS.length).optional(),
+});
+
 export const sectionEditApplySchema = z.object({
   proposalId: z.string().uuid(),
 });

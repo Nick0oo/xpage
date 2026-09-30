@@ -31,8 +31,9 @@ function descendants(parent: Parent): Element[] {
 
 function textContent(node: Node): string {
   if (!isElement(node)) return "value" in node ? node.value : "";
+  if (node.tagName === "br") return " ";
   const content = "content" in node ? node.content : node;
-  return content.childNodes.map(textContent).join("");
+  return content.childNodes.map(textContent).join(" ").replace(/\s+([,.;:!?])/g, "$1");
 }
 
 function sectionNodes(html: string) {
@@ -66,6 +67,69 @@ export function getEditableSections(html: string) {
       reason: element.tagName !== "section" ? "El marcador no está en un elemento <section>." : duplicates.has(id) ? "Este ID aparece más de una vez." : undefined,
     };
   });
+}
+
+export function reorderSections(html: string, orderedIds: string[]) {
+  const fragment = parseFragment(html);
+  const sections = descendants(fragment).filter((element) => attribute(element, "data-xpage-section") !== undefined);
+  const ids = sections.map((element) => attribute(element, "data-xpage-section")!);
+  if (new Set(ids).size !== ids.length || ids.length !== orderedIds.length || ids.some((id) => !orderedIds.includes(id))) {
+    throw new Error("La lista de secciones cambió. Actualiza el editor antes de reordenar.");
+  }
+  const parents = new Map<Element, Parent>();
+  const findParents = (parent: Parent) => {
+    for (const node of parent.childNodes) {
+      if (!isElement(node)) continue;
+      if (attribute(node, "data-xpage-section") !== undefined) parents.set(node, parent);
+      findParents(node);
+      if ("content" in node) findParents(node.content);
+    }
+  };
+  findParents(fragment);
+  if (new Set([...parents.values()]).size > 1) throw new Error("Solo se pueden reordenar secciones que estén al mismo nivel.");
+  const parent = parents.values().next().value as Parent | undefined;
+  if (!parent) return serialize(fragment);
+  const positions = parent.childNodes.flatMap((node, index) => isElement(node) && attribute(node, "data-xpage-section") !== undefined ? [index] : []);
+  const orderedNodes = orderedIds.map((id) => sections.find((section) => attribute(section, "data-xpage-section") === id)!);
+  positions.forEach((position, index) => { parent.childNodes[position] = orderedNodes[index]; });
+  return serialize(fragment);
+}
+
+export function getDocumentMediaMarkup(html: string) {
+  const fragment = parseFragment(html);
+  return descendants(fragment).filter((element) => ["img", "video", "source"].includes(element.tagName)).map(serializeOuter);
+}
+
+export function getDocumentSlotIds(html: string) {
+  return markerValues(parseFragment(html), "data-xpage-slot");
+}
+
+export function insertSectionAfter(html: string, sectionId: string, afterSectionId?: string, innerHtml = sectionId) {
+  const fragment = parseFragment(html);
+  const sections = descendants(fragment).filter((element) => attribute(element, "data-xpage-section") !== undefined);
+  if (sections.some((element) => attribute(element, "data-xpage-section") === sectionId)) throw new Error("El marcador de la sección nueva ya existe.");
+  const newFragment = parseFragment(`<section data-xpage-section="${sectionId}">${sectionId}</section>`);
+  const newSection = descendants(newFragment).find((element) => attribute(element, "data-xpage-section") === sectionId);
+  if (!newSection) throw new Error("No se pudo preparar la nueva sección.");
+  const anchor = afterSectionId ? sections.find((element) => attribute(element, "data-xpage-section") === afterSectionId) : sections[sections.length - 1];
+  if (afterSectionId && !anchor) throw new Error("No encontramos la sección de referencia para insertar la nueva.");
+  if (anchor?.parentNode) {
+    const parent = anchor.parentNode;
+    const index = parent.childNodes.indexOf(anchor);
+    parent.childNodes.splice(index + 1, 0, newSection);
+    newSection.parentNode = parent;
+  } else {
+    const body = descendants(fragment).find((element) => element.tagName === "body");
+    const parent: Parent = body ?? fragment;
+    parent.childNodes.push(newSection);
+    newSection.parentNode = parent;
+  }
+  const inserted = descendants(fragment).find((element) => attribute(element, "data-xpage-section") === sectionId)!;
+  const contentFragment = parseFragment(`<section data-xpage-section="${sectionId}">${innerHtml}</section>`);
+  const contentSection = descendants(contentFragment).find((element) => attribute(element, "data-xpage-section") === sectionId)!;
+  inserted.childNodes = contentSection.childNodes;
+  for (const child of inserted.childNodes) child.parentNode = inserted;
+  return serialize(fragment);
 }
 
 export function extractSection(html: string, sectionId: string) {
