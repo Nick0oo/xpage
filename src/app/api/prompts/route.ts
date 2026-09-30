@@ -77,7 +77,7 @@ COPY PÚBLICO: hipótesis, incógnitas y decisiones de diseño van en plan/traza
 
 CTA: usa el destino externo si el brief lo proporciona. Si no, elige un enlace interno que conduzca a una sección o contenido real de esta landing; nunca propongas un botón deshabilitado ni una acción ficticia. Refleja ese destino en la sección final y en el prompt.
 
-SLOTS DE MEDIOS: por cada slot incluye `searchQueries` (1–3 consultas iniciales) y `selectionCriteria` para el workspace de búsqueda real; asócialo a `mediaSlotIds` de una sección. No inventes candidatos, autor, URL ni licencia. Video solo de stock gratuito disponible, con `poster`, controles manuales sin sonido/autoplay y `reducedMotion` completo. Copia estos campos en el prompt editable para que la búsqueda/selección posterior los reutilice.
+SLOTS DE MEDIOS: por cada slot incluye searchQueries (1–3 consultas iniciales) y selectionCriteria para el workspace de búsqueda real; asócialo a mediaSlotIds de una sección. No inventes candidatos, autor, URL ni licencia. Video solo de stock gratuito disponible, con poster, controles manuales sin sonido/autoplay y reducedMotion completo. Copia estos campos en el prompt editable para que la búsqueda/selección posterior los reutilice.
 
 Brief (fuente de hechos):
 ${briefText}
