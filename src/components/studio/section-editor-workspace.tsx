@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { AlertCircle, ArrowDownLeft, Check, Clock3, Code2, FileCode2, Image as ImageIcon, LoaderCircle, Monitor, MousePointer2, RotateCcw, Smartphone, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { buildPreviewDocument } from "@/lib/preview-document";
-import type { LandingCode } from "@/lib/schemas";
+import type { Brief, LandingCode } from "@/lib/schemas";
 import type { ModelChoice } from "@/lib/model-choice";
 import { techniques, type TechniqueId } from "@/lib/techniques";
 import type { SectionPatch } from "@/lib/section-edits/schemas";
@@ -17,6 +17,7 @@ type Proposal = {
   baseRevision: number;
   beforeHtml: string;
   afterHtml: string;
+  fullHtml?: string;
   css: string;
   nextCss: string;
   patch: SectionPatch;
@@ -25,6 +26,7 @@ type Proposal = {
 type Props = {
   landingId: string | null;
   code: LandingCode;
+  brief: Brief;
   modelChoice: ModelChoice;
   onApplied: (code: LandingCode, revision: number) => void;
   onOpenMedia: () => void;
@@ -32,6 +34,24 @@ type Props = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function getEditableSections(html: string): SectionInfo[] {
+  const document = new DOMParser().parseFromString(html, "text/html");
+  const elements = [...document.querySelectorAll("[data-xpage-section]")];
+  const ids = elements.map((element) => element.getAttribute("data-xpage-section") ?? "");
+  return elements.map((element, index) => {
+    const id = ids[index];
+    const duplicate = ids.indexOf(id) !== index || ids.lastIndexOf(id) !== index;
+    const title = element.querySelector("h1,h2,h3,h4,h5,h6")?.textContent?.replace(/\s+/g, " ").trim();
+    const validId = /^[a-z0-9-]{1,80}$/.test(id);
+    return {
+      id,
+      title: title?.slice(0, 140) || id.replaceAll("-", " "),
+      editable: element.tagName.toLowerCase() === "section" && !duplicate && validId,
+      reason: element.tagName.toLowerCase() !== "section" ? "El marcador no está en un elemento <section>." : duplicate ? "Este ID aparece más de una vez." : !validId ? "El ID de esta sección no es válido." : undefined,
+    };
+  });
 }
 
 function selectableDocument(code: LandingCode, nonce: string) {
@@ -89,7 +109,7 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied, onOpenMedia }: Props) {
+export function SectionEditorWorkspace({ landingId, code, brief, modelChoice, onApplied, onOpenMedia }: Props) {
   const frame = useRef<HTMLIFrameElement>(null);
   const nonce = useId();
   const [state, setState] = useState<EditorState | null>(null);
@@ -104,7 +124,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
 
   const refreshState = useCallback(async () => {
     if (!landingId) {
-      setState(null);
+      setState({ revision: 0, sections: getEditableSections(code.html), undoRevisionId: null, undoUnavailable: false, currentSummary: null, revisions: [] });
       return;
     }
     try {
@@ -114,10 +134,14 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "No se pudo preparar el editor.");
     }
-  }, [landingId]);
+  }, [landingId, code.html]);
 
   useEffect(() => {
-    if (!landingId) return;
+    if (!landingId) {
+      setState({ revision: 0, sections: getEditableSections(code.html), undoRevisionId: null, undoUnavailable: false, currentSummary: null, revisions: [] });
+      setSelectedSectionId(null);
+      return;
+    }
     let cancelled = false;
     void requestJson<EditorState>(`/api/section-edits?landingId=${encodeURIComponent(landingId)}`)
       .then((result) => {
@@ -152,7 +176,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
 
   const srcDoc = useMemo(() => nonce ? selectableDocument(code, nonce) : buildPreviewDocument(code), [code, nonce]);
   const selectedSection = state?.sections.find((item) => item.id === selectedSectionId) ?? null;
-  const canEdit = Boolean(landingId && selectedSection?.editable && state && !busy);
+  const canEdit = Boolean(selectedSection?.editable && state && !busy);
 
   function selectSection(section: SectionInfo) {
     if (!section.editable) {
@@ -175,14 +199,16 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
   }
 
   async function propose() {
-    if (!landingId || !selectedSection?.editable || !state) return;
+    if (!selectedSection?.editable || !state) return;
     setBusy(true);
     setError("");
     setNotice("");
     try {
-      const result = await requestJson<Proposal>("/api/section-edits/proposals", {
+      const result = await requestJson<Proposal>(landingId ? "/api/section-edits/proposals" : "/api/section-edits/preview-proposals", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ savedLandingId: landingId, sectionId: selectedSection.id, baseRevision: state.revision, instruction, techniqueIds: selectedTechniqueIds, modelChoice }),
+        body: JSON.stringify(landingId
+          ? { savedLandingId: landingId, sectionId: selectedSection.id, baseRevision: state.revision, instruction, techniqueIds: selectedTechniqueIds, modelChoice }
+          : { code, brief, sectionId: selectedSection.id, instruction, techniqueIds: selectedTechniqueIds, modelChoice }),
       });
       setProposal(result);
       setNotice("Propuesta lista. Compara antes y después; nada cambia hasta que la apliques.");
@@ -195,6 +221,17 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
 
   async function apply() {
     if (!proposal) return;
+    if (!landingId) {
+      if (!proposal.fullHtml) {
+        setError("La propuesta temporal no incluyó el documento completo. Vuelve a generarla.");
+        return;
+      }
+      onApplied({ ...code, html: proposal.fullHtml, css: proposal.nextCss }, 0);
+      setProposal(null);
+      setInstruction("");
+      setNotice("Cambio aplicado a esta sesión. Guárdala en Biblioteca si quieres conservarlo al salir.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -216,6 +253,12 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
 
   async function discard() {
     if (!proposal) return;
+    if (!landingId) {
+      setProposal(null);
+      setError("");
+      setNotice("Propuesta descartada. La landing conserva su versión actual.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -264,7 +307,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
           <div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-lg bg-violet-50 text-violet-700"><ImageIcon size={15} aria-hidden="true" /></span><div className="min-w-0"><p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Proyecto</p><p className="truncate text-xs font-semibold text-slate-800">{code.title}</p></div></div>
           <section aria-labelledby="section-nav-heading">
             <div className="mb-2 flex items-center justify-between"><h2 id="section-nav-heading" className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Secciones</h2><span className="text-[10px] tabular-nums text-slate-400">{state?.sections.length ?? 0}</span></div>
-            {state?.sections.length ? <nav className="space-y-0.5">{state.sections.map((section, index) => <button key={section.id} type="button" onClick={() => selectSection(section)} disabled={busy || Boolean(proposal)} aria-current={selectedSectionId === section.id ? "true" : undefined} className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50 ${selectedSectionId === section.id ? "bg-violet-50 font-medium text-violet-950" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}><span className={`grid size-5 shrink-0 place-items-center rounded-md text-[9px] font-semibold ${selectedSectionId === section.id ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"}`}>{String(index + 1).padStart(2, "0")}</span><span className="min-w-0 flex-1 truncate">{section.title}</span>{selectedSectionId === section.id ? <span className="size-1.5 shrink-0 rounded-full bg-violet-600" /> : null}</button>)}</nav> : <p className="rounded-lg bg-slate-50 p-2.5 text-[10px] leading-4 text-slate-500">{landingId ? "Leyendo secciones…" : "Guarda esta landing para habilitar la edición."}</p>}
+            {state?.sections.length ? <nav className="space-y-0.5">{state.sections.map((section, index) => <button key={section.id} type="button" onClick={() => selectSection(section)} disabled={busy || Boolean(proposal)} aria-current={selectedSectionId === section.id ? "true" : undefined} className={`flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[11px] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50 ${selectedSectionId === section.id ? "bg-violet-50 font-medium text-violet-950" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}><span className={`grid size-5 shrink-0 place-items-center rounded-md text-[9px] font-semibold ${selectedSectionId === section.id ? "bg-violet-700 text-white" : "bg-slate-100 text-slate-500"}`}>{String(index + 1).padStart(2, "0")}</span><span className="min-w-0 flex-1 truncate">{section.title}</span>{selectedSectionId === section.id ? <span className="size-1.5 shrink-0 rounded-full bg-violet-600" /> : null}</button>)}</nav> : <p className="rounded-lg bg-slate-50 p-2.5 text-[10px] leading-4 text-slate-500">{landingId ? "Leyendo secciones…" : "Esta landing no tiene marcadores de sección editables."}</p>}
           </section>
 
           <section aria-labelledby="revision-history-heading" className="border-t border-slate-100 pt-4">
@@ -318,7 +361,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
             </div>
           ) : (
             <div role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-5 text-foreground">
-              Guarda la landing en Biblioteca para iniciar revisiones y conservar cada cambio.
+              Estás editando una vista temporal. Los cambios se aplican a esta sesión; guárdala en Biblioteca si quieres conservarlos y llevar un historial de revisiones.
             </div>
           )}
 
@@ -336,7 +379,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
 
           <section aria-labelledby="selected-section-heading" className="flex items-center gap-2 rounded-lg border border-violet-100 bg-violet-50/70 px-3 py-2.5"><MousePointer2 size={13} className="shrink-0 text-violet-700" aria-hidden="true"/><div className="min-w-0"><p id="selected-section-heading" className="truncate text-[11px] font-semibold text-slate-800">{selectedSection?.title ?? "Selecciona una sección"}</p><p className="truncate text-[10px] text-slate-500">{selectedSection ? (selectedSection.editable ? "Lista para editar" : selectedSection.reason) : "Elige desde el canvas o la navegación"}</p></div></section>
 
-          <fieldset disabled={!landingId || !selectedSection?.editable || busy || Boolean(proposal)}>
+          <fieldset disabled={!selectedSection?.editable || busy || Boolean(proposal)}>
             <legend className="mb-2 text-[11px] font-semibold text-slate-800">Guía de edición <span className="ml-1 font-normal text-slate-400">· opcional</span></legend>
             <div className="grid grid-cols-2 gap-1.5">
               {techniques.map((technique) => {
@@ -355,7 +398,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
             Instrucciones para Eve
             <textarea id="section-edit-instruction" value={instruction} onChange={(event) => setInstruction(event.target.value)} maxLength={1200} rows={3}
               placeholder="Ej.: destaca el beneficio principal con una frase breve y haz el CTA más directo."
-              disabled={!landingId || !selectedSection?.editable || busy || Boolean(proposal)}
+              disabled={!selectedSection?.editable || busy || Boolean(proposal)}
               className="mt-2 min-h-24 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-xs font-normal leading-5 text-slate-800 outline-none placeholder:text-slate-400 focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50" />
           </label>
           {!proposal && selectedSection?.editable ? <div className="flex flex-wrap gap-1.5">{["Hazlo más claro", "Mejora el CTA", "Refuerza el beneficio"].map((suggestion) => <button key={suggestion} type="button" disabled={busy} onClick={() => setInstruction((current) => current ? `${current}${current.endsWith(".") ? "" : "."} ${suggestion}.` : `${suggestion} para esta sección.`)} className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] text-slate-600 transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800 disabled:opacity-50">{suggestion}</button>)}</div> : null}
@@ -405,7 +448,7 @@ export function SectionEditorWorkspace({ landingId, code, modelChoice, onApplied
           {error ? <p role="alert" className="flex gap-2 rounded-lg border border-destructive/20 bg-destructive/5 p-2.5 text-xs leading-5 text-destructive"><AlertCircle size={14} className="mt-0.5 shrink-0" aria-hidden="true" />{error}</p> : null}
 
           <p className="flex items-start gap-2 border-t border-border pt-3 text-[10px] leading-4 text-muted-foreground">
-            <ArrowDownLeft size={12} className="mt-0.5 shrink-0" aria-hidden="true" /> La vista está aislada en un iframe opaco. Revisa cada propuesta antes de guardarla; las revisiones anteriores siguen disponibles en la traza.
+            <ArrowDownLeft size={12} className="mt-0.5 shrink-0" aria-hidden="true" /> La vista está aislada en un iframe opaco. Revisa cada propuesta antes de aplicarla; guarda la landing en Biblioteca para conservar cambios e historial.
           </p>
         </div>
       </aside>

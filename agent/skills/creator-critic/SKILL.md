@@ -28,3 +28,15 @@ Compara hero, sección más densa y cierre contra DesignDNA: ¿el motivo persist
 
 ## Evidencia
 Este método revisa el plan textual y las decisiones visibles descritas. Solo reporta inspección de captura/render, responsive real o medición si se ejecutó esa comprobación. No uses palabras como “convierte más” como resultado sin experimento.
+## Rúbrica reproducible
+Para cada hallazgo completa una tarjeta compacta: ubicación; evidencia del brief o plan; regla incumplida; efecto visible; corrección; comprobación posterior.
+- Brief: la oferta se puede nombrar en una frase y no tiene claims sin fuente.
+- Contenido: compara lista solicitada con los textos reales y el destino de sección. Cuenta entradas, no menciones.
+- Estructura: cada ID del plan está representado; los títulos no repiten la misma idea; CTA y anclas existen.
+- Visual: el motivo de DesignDNA aparece en formas distintas apropiadas a las tareas; al menos dos composiciones tienen razón funcional.
+- Acceso: headings en orden, texto alternativo informativo, foco visible, estado no dependiente del color y movimiento reducido.
+Prioriza omisiones y acciones falsas antes de preferencias visuales. Resuelve cinco problemas como máximo; si quedan más, corrige primero los que impiden entender o usar la página.
+No uses «mejor», «más bonito» o «premium» como hallazgo sin señalar elemento y criterio observables.
+Una observación sin reparación se registra solo cuando el cambio dañaría un requisito; explica ese bloqueo concreto.
+Después de reparar, repite únicamente el chequeo ligado al defecto. No describas render, contraste medido ni comportamiento probado si solo leíste el plan.
+Ejemplo: «La práctica anuncia cinco trabalenguas pero la sección solo contiene tres; agregar dos piezas completas al inventario y al copy antes de construir».

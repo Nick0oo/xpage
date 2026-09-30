@@ -28,3 +28,14 @@ Compara cada cifra, promesa, comparación y credencial con texto fuente. “Podr
 
 ## Acceso y medios
 Comprueba orden lógico de headings, labels claros, foco visible, contraste, lectura sin color, no autoplay, reduced-motion, alt útil y contenido completo sin JavaScript. No afirmes conformidad WCAG completa por una revisión de texto parcial.
+## Controles negativos accionables
+Reescribe cada exclusión como un control que se pueda revisar en texto o código:
+- «sin animación» → ningún contenido exige movimiento; desactiva transiciones no esenciales bajo prefers-reduced-motion.
+- «sin botones falsos» → enlaces tienen destino existente, los botones accionan comportamiento real y formularios no simulan envío.
+- «sin claims inventados» → cada precio, garantía, métrica, cliente y resultado tiene fuente en el brief.
+- «sin diseño genérico» → elimina combinaciones automáticas de gradiente, vidrio borroso, iconos repetidos y tarjetas uniformes cuando no nacen del DesignDNA.
+- «sin contenido remoto» → no hay import, CDN, fuente remota, iframe ni carga de red.
+Incluye las restricciones explícitas del usuario además de los límites técnicos de XPage. No vuelvas a introducir lo retirado bajo otro nombre.
+Si una exclusión impide un método, adapta ese método y registra la tensión en contributions en lugar de omitirla en silencio.
+Las restricciones no deben borrar contenido solicitado, accesibilidad o contexto que permite decidir.
+Audita el artefacto final contra una lista corta de frases prohibidas y estructuras reconocibles; si aparece alguna, modifica el elemento exacto.

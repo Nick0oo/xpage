@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { ModelChoice } from "@/lib/model-choice";
 
 type ModelInfo = { id: ModelChoice; label: string; enabled: boolean };
+type ChatGptAuthState = "checking" | "disconnected" | "connecting" | "connected" | "error";
 
 export function EveModelSelector({ value, onChange }: { value: ModelChoice; onChange: (model: ModelChoice) => void }) {
   const [models, setModels] = useState<ModelInfo[]>([
@@ -13,9 +14,12 @@ export function EveModelSelector({ value, onChange }: { value: ModelChoice; onCh
     { id: "gemini", label: "Gemini", enabled: false },
     { id: "qwen", label: "Qwen", enabled: false },
   ]);
-  const [status, setStatus] = useState("Consultando proveedores…");
+  const [status, setStatus] = useState("Consultando Eve…");
   const [saving, setSaving] = useState(false);
   const [imageConfigured, setImageConfigured] = useState(false);
+  const [authState, setAuthState] = useState<ChatGptAuthState>("checking");
+  const [codexAvailable, setCodexAvailable] = useState(true);
+  const [authMessage, setAuthMessage] = useState("");
 
   useEffect(() => {
     void fetch("/api/eve-model")
@@ -30,12 +34,59 @@ export function EveModelSelector({ value, onChange }: { value: ModelChoice; onCh
         ];
         setModels(nextModels);
         setImageConfigured(payload.imageConfigured === true);
-        const health = await fetch("/eve/v1/health");
-        if (!health.ok) throw new Error("Eve no responde.");
-        setStatus("Eve conectado. El acceso a ChatGPT se administra localmente desde Eve.");
+        setStatus(payload.eveAvailable === true
+          ? "Eve está disponible. El acceso a ChatGPT aún debe confirmarse con una generación."
+          : "Eve no responde todavía. Inicia la aplicación y vuelve a consultar.");
       })
-      .catch(() => setStatus("Inicia pnpm dev y configura /login → ChatGPT Subscription en Eve."));
+      .catch(() => setStatus("No se pudo consultar Eve. Comprueba que la aplicación local esté iniciada."));
+    void fetch("/api/eve-model/auth")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("No se pudo consultar el inicio de sesión.");
+        const payload = await response.json();
+        setAuthState(payload.state);
+        setCodexAvailable(payload.codexAvailable === true);
+      })
+      .catch(() => {
+        setAuthState("error");
+        setAuthMessage("No se pudo consultar el estado de inicio de sesión.");
+      });
   }, []);
+
+  async function connectChatGpt() {
+    setAuthState("connecting");
+    setAuthMessage("Abriendo el inicio de sesión de ChatGPT en el navegador del sistema…");
+    try {
+      const response = await fetch("/api/eve-model/auth", { method: "POST" });
+      if (!response.ok) throw new Error("No se pudo iniciar el acceso a ChatGPT.");
+      let attempts = 0;
+      const poll = async () => {
+        attempts += 1;
+        try {
+          const statusResponse = await fetch("/api/eve-model/auth");
+          if (!statusResponse.ok) throw new Error();
+          const payload = await statusResponse.json();
+          setCodexAvailable(payload.codexAvailable === true);
+          setAuthState(payload.state);
+          if (payload.state === "connecting" && attempts < 230) {
+            window.setTimeout(() => void poll(), 1_500);
+          } else if (payload.state === "connected") {
+            setAuthMessage("Sesión de ChatGPT confirmada por Codex. Prueba Eve para confirmar la generación.");
+          } else if (payload.state === "error") {
+            setAuthMessage("Codex no pudo iniciar el acceso. Revisa la instalación del CLI y vuelve a intentar.");
+          } else if (payload.state === "disconnected") {
+            setAuthMessage("No hay una sesión de ChatGPT activa en Codex.");
+          }
+        } catch {
+          setAuthState("error");
+          setAuthMessage("No se pudo consultar el estado de inicio de sesión.");
+        }
+      };
+      void poll();
+    } catch {
+      setAuthState("error");
+      setAuthMessage("No se pudo iniciar el acceso a ChatGPT desde esta aplicación.");
+    }
+  }
 
   function saveModel(nextModel: ModelChoice) {
     setSaving(true);
@@ -60,10 +111,28 @@ export function EveModelSelector({ value, onChange }: { value: ModelChoice; onCh
       </select>
       <p className="mt-2 text-xs text-muted-foreground" role="status" aria-live="polite">{status}</p>
       <p className="mt-1 text-xs text-muted-foreground">Imagen de portada: {imageConfigured ? "OpenRouter configurado" : "requiere OPENROUTER_API_KEY"} · selección de modelo guardada en este navegador.</p>
-      <p className="mt-2 text-xs text-muted-foreground">
-        Sesión ChatGPT: ejecuta <code>pnpm eve:dev</code> en otra terminal y usa <code>/login</code> → <code>ChatGPT Subscription</code>.
-        <Link href="/eve-prueba" className="ml-2 font-medium text-primary underline underline-offset-2">Probar conexión</Link>
-      </p>
+      <div className="mt-4 border-t border-border pt-4">
+        <p className="text-sm font-semibold">Conexión ChatGPT Subscription</p>
+        <p className="mt-1 text-xs text-muted-foreground" role="status" aria-live="polite">
+          {authMessage || (authState === "checking" ? "Consultando sesión local de Codex…"
+            : authState === "connected" ? "Codex tiene una sesión de ChatGPT activa."
+              : authState === "connecting" ? "Iniciando sesión…"
+                : !codexAvailable ? "No se encontró Codex CLI en el entorno de XPage."
+                  : "No hay una sesión de ChatGPT activa en Codex.")}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void connectChatGpt()}
+            disabled={authState === "checking" || authState === "connecting" || !codexAvailable}
+            className="min-h-10 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {authState === "connecting" ? "Esperando inicio de sesión…" : authState === "connected" ? "Cambiar sesión de ChatGPT" : "Conectar ChatGPT Subscription"}
+          </button>
+          <Link href="/eve-prueba" className="text-sm font-medium text-primary underline underline-offset-2">Probar conexión con Eve</Link>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">La sesión se guarda localmente por Codex. La prueba con Eve confirma que el modelo también puede generar.</p>
+      </div>
     </div>
   );
 }

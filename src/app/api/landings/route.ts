@@ -15,7 +15,7 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const landingInstructions = `Eres director de arte y frontend senior. Construye una landing completa desde el prompt: devuelve título, HTML del body, CSS independiente y JavaScript vanilla independiente.
+const landingInstructions = `Eres director de arte y frontend senior. Antes de programar, carga la skill frontend-design con load_skill y aplica su procedimiento completo. Usa el sistema y las composiciones que el plan decidió; DesignDNA define la identidad final. Construye una landing completa desde el prompt: devuelve título, HTML del body, CSS independiente y JavaScript vanilla independiente.
 
 DIRECCIÓN: lee oferta, público, tono, DesignDNA, designSystem, compositionRecipeIds y métodos antes de programar. DesignDNA manda; adapta cualquier gramática para respetarla. Propón una identidad reconocible y específica al brief. Traduce el motivo visual a recursos propios con CSS/SVG y define tokens útiles de color, tipo, espacio, bordes y foco. Cambia composición del hero y de las secciones por propósito; evita repetir titular centrado, split, Bento o tres tarjetas iguales por defecto.
 
@@ -191,7 +191,6 @@ function cssSyntaxError(css: string) {
 function missingLandingElements(html: string, requirements: Array<{ sectionId: string; requiredItems: string[] }>, sectionIds: string[]) {
   const fragment = parseFragment(html);
   const elements = parsedElements(fragment);
-  const visible = normalizeContent(parsedText(fragment));
   const sectionMarkers = elements.filter((element) => parsedAttribute(element, "data-xpage-section") !== undefined);
   const markerIds = new Set(sectionMarkers.map((element) => parsedAttribute(element, "data-xpage-section")).filter((id): id is string => id !== undefined));
   const missingSections = sectionIds.filter((id) => !markerIds.has(id) || !sectionMarkers.some((element) => parsedAttribute(element, "data-xpage-section") === id && element.tagName === "section")).map((id) => `Seccion <section> sin marker: ${id}`);
@@ -212,7 +211,11 @@ function missingLandingElements(html: string, requirements: Array<{ sectionId: s
     "explicacion breve y respaldada por el brief",
   ].filter((copy) => normalizedHtml.includes(copy));
   const seedPlaceholders = [...leakedPlaceholders, ...placeholderCopy.map((copy) => `Copy de muestra sin adaptar: ${copy}`)];
-  const missingItems = requirements.flatMap(({ requiredItems }) => requiredItems.filter((item) => !visible.includes(normalizeContent(item))).map((item) => `Contenido requerido faltante: ${item}`));
+  const missingItems = requirements.flatMap(({ sectionId, requiredItems }) => {
+    const targetSection = sectionMarkers.find((element) => parsedAttribute(element, "data-xpage-section") === sectionId && element.tagName === "section");
+    const sectionText = targetSection ? normalizeContent(parsedText(targetSection)) : "";
+    return requiredItems.filter((item) => !sectionText.includes(normalizeContent(item))).map((item) => `Contenido requerido faltante en ${sectionId}: ${item}`);
+  });
   const primaryCtas = elements.filter((element) => parsedAttribute(element, "class")?.split(/\s+/).includes("cta"));
   const inactivePrimaryCta = primaryCtas.length === 0 || primaryCtas.some((element) =>
     element.tagName !== "a" || !parsedAttribute(element, "href") || parsedAttribute(element, "href") === "#" || parsedAttribute(element, "href")?.startsWith("javascript:") || parsedAttribute(element, "aria-disabled") === "true")
@@ -244,7 +247,7 @@ async function recordLandingQualityReview(input: {
   const controls = {
     cssParse: input.cssParsePassed === null ? "not-reached" : input.cssParsePassed ? "passed" : "failed",
     plannedSections: !input.htmlQualityChecked ? "not-reached" : { expected: input.plannedSectionIds.length, missing: findingMatches(["Seccion <section>"]) },
-    requiredItems: !input.htmlQualityChecked ? "not-reached" : { expected: input.requirements.reduce((count, item) => count + item.requiredItems.length, 0), missing: findingMatches(["Contenido requerido faltante:"]) },
+    requiredItems: !input.htmlQualityChecked ? "not-reached" : { expected: input.requirements.reduce((count, item) => count + item.requiredItems.length, 0), missing: findingMatches(["Contenido requerido faltante"]) },
     primaryCta: !input.htmlQualityChecked ? "not-reached" : findingMatches(["El CTA principal"]).length ? "failed" : "passed",
     imageAlt: !input.htmlQualityChecked ? "not-reached" : findingMatches(["Hay imágenes sin texto alternativo"]).length ? "failed" : "passed",
     uniqueIds: !input.htmlQualityChecked ? "not-reached" : findingMatches(["ID HTML duplicado:"]).length ? "failed" : "passed",

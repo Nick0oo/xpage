@@ -28,3 +28,15 @@ Retira adornos que compitan con titulares, bordes y sombras repetidos, badges va
 
 ## Entrega
 En `discardedElements` registra lo quitado y la razón concreta. Revisa el flujo antes/después para asegurar que la transición entre secciones todavía explica oferta, ejemplos y acción. “Menos es más” no cuenta como razón.
+## Auditoría de sustracción
+Clasifica candidatos a retiro en cuatro grupos: repetición, decoración, claim no respaldado y componente de comprensión. Solo los tres primeros se pueden retirar automáticamente.
+- Retira una repetición si otro bloque aporta la misma información y no añade un paso o formato útil.
+- Retira ornamento si no guía atención, identifica una relación, mejora orientación o aporta identidad.
+- Retira claims sin fuente; no los reemplaces por una afirmación más vaga que implique el mismo resultado.
+- Conserva ejemplos pedidos, requisitos contables, etiquetas necesarias, texto alternativo, foco, instrucciones y contexto de una decisión.
+- Cuando reduzcas elementos, verifica que no borraste una etapa necesaria entre entender la oferta y ejecutar su CTA.
+- Una tarjeta puede desaparecer y su texto permanecer como lista, nota o figura; sustracción no exige quitar contenido.
+- Antes de quitar un recurso visual, comprueba si tenía función explicativa o solo adorno.
+- Registra cada retiro en discardedElements con elemento identificable y razón concreta.
+- Contrasta el antes/después: mismos requisitos, menos repetición; si cae la comprensión, restaura el fragmento necesario.
+- No uses «minimalista» como razón para crear una página pobre o tres bloques vacíos.

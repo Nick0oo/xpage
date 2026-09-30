@@ -46,3 +46,47 @@ Image-assets pide mostrar una acción y negative-constraints exige poco movimien
 
 ## No hacer
 No concatenar métodos, crear una sección por método, repetir una fila de tarjetas, inferir investigación, presentar intuición CRO como medición, resumir entregables pedidos, omitir conflictos, inventar acciones, ni exponer razonamiento privado.
+
+## Procedimiento de integración, de principio a fin
+
+### A. Fijar el contrato de la página
+Convierte el brief a una ficha de una línea por dato: oferta; destinatario; acción; voz; restricciones; fuente; estado del dato. Conserva el texto original del brief junto con esa ficha. Una preferencia visual no autoriza modificar oferta, público, cantidad, nombre ni destino de un CTA.
+
+Lee las skills indicadas y sus referencias por completo antes de integrar. Cada método elegido entrega una decisión y una pieza de evidencia que se pueda localizar en la página. Los métodos no elegidos no aparecen como contribuciones inventadas. Si el brief presenta una cantidad para un producto creativo, cuenta la lista concreta antes de avanzar: un rótulo «5 ejemplos» no es cinco ejemplos.
+
+### B. Resolver una sola identidad visual
+Aplica `frontend-design` como procedimiento común, aunque los métodos seleccionados sean solo de copy o medios. Primero selecciona la gramática disponible más afín al brief; luego transforma esa gramática a través de `designDNA`. Escribe la identidad como reglas implementables, por ejemplo: «tinta verde profunda para lectura, marfil para fondo, rojo coral solo para acción; titulares serif compactos; notas numeradas al margen; imágenes como recortes de taller». Evita reglas vacías como «moderno y elegante».
+
+El motivo no es una ilustración aislada. Debe poder reaparecer de formas adecuadas a cada tarea: una línea puede convertirse en eje del recorrido, subrayado editorial y señal de foco; una letra puede servir de gráfico central, marcador de práctica y detalle del cierre. Si marca, tema o accesibilidad chocan con la receta, anota qué regla se adaptó y qué conserva su función.
+
+### C. Diseñar el argumento antes del estilo
+Escribe primero el orden de secciones con esta estructura de decisión (no es una plantilla fija):
+
+| Fase posible | Pregunta que contesta | Evidencia apropiada |
+|---|---|---|
+| Orientación | ¿Qué es y para quién? | La oferta y el destinatario del brief |
+| Comprensión | ¿Cómo es o qué incluye? | Alcance y pasos conocidos |
+| Demostración | ¿Qué puedo inspeccionar o practicar? | Entregables concretos, muestras originales pedidas, demo respaldada |
+| Decisión | ¿Qué duda real queda? | Datos del brief; nunca objeciones o testimonios fabricados |
+| Acción | ¿Cuál es el siguiente paso? | URL dada o ancla a contenido que existe |
+
+Cada sección apunta a una sola pregunta principal. Una sola sección puede resolver más de una pregunta cuando el contenido es breve. Amplía el recorrido cuando haya contenido real para desarrollar; no añadas FAQ, métricas, logos ni testimonios por inercia. Asigna a cada sección un verbo de composición diferente: abrir, explicar, comparar, practicar, orientar, cerrar. Dos secciones contiguas no deben compartir el mismo gesto visual sin una razón.
+
+### D. Asignar a los métodos su parte
+Agrupa los aportes por la variable que cambian, no por el orden en que llegaron: narrativa, lenguaje, visual, medios, simplificación y crítica. Combina sus decisiones compatibles en el mismo componente. Ejemplo: copy humano pide un titular concreto, prompts ambiciosos pide hacer clara la audiencia y el sistema editorial usa ese titular como apertura asimétrica; eso es una solución integrada, no tres piezas apiladas.
+
+Al resolver una tensión, nombra la necesidad y el control que manda. Ejemplo: «video-assets sugiere movimiento para mostrar el proceso; negative-constraints fija movimiento reducido. Se conserva la explicación estática y se deja el video como recurso manual opcional». Registra estado, decisión, artefacto visible y una adaptación verificable en el aporte correcto.
+
+### E. Preservar y localizar los entregables
+Por cada requisito enumerable, registra una sola fila de inventario con ID estable, frase del requisito, sección destino, cantidad exacta y texto completo de cada pieza. Coloca el mismo contenido en el copy de esa sección y el prompt de construcción. Antes de acabar, cuenta las piezas y coteja la lista palabra por palabra. Si una pieza aparece en dos secciones por razones de lectura, sigue contando como un solo elemento del inventario.
+
+Los ejemplos originales solicitados sí son contenido a producir. Nombres, cifras, hechos, testimonios, beneficios y garantías del producto siguen necesitando fuente. No uses la regla de «no inventar hechos» para evadir un ejercicio, un trabalenguas, una receta o una pregunta que el usuario sí pidió redactar.
+
+### F. Pasar la crítica como una reparación
+Haz una única revisión focalizada después de completar el plan. Por cada hallazgo conserva cuatro datos: elemento localizado; criterio incumplido; efecto observable; reparación aplicada. Examina primero entregables ausentes, claims sin fuente, sección omitida o CTA falso. Después examina semántica, foco, lectura móvil, movimiento reducido, jerarquía y repetición visual. No reescribas el plan entero por preferencia estética; modifica el menor número de decisiones que resuelve defectos reales.
+
+### G. Cierre de consistencia
+El plan y su prompt deben describir la misma página. Confirma IDs de secciones únicos; requisitos y slots con sección existente; cada receta seleccionada aplicada por lo menos una vez; aportes cubiertos exactamente; claims enlazados a su fuente; títulos que cuentan un argumento al leerse en secuencia; CTA que lleva a un destino real; y cada pieza del inventario completa en su sección. Solo entonces considera el plan listo para transformarse en HTML.
+
+## Caso de referencia: practicar la letra «r»
+Para un brief que ofrece hasta cinco trabalenguas, el mapa debe reservar una sección de práctica que realmente los contenga. El plan entrega cinco trabalenguas completos, distintos entre sí y en español natural; `targetCount` es cinco. DesignDNA puede convertir el ritmo fonético de la erre en señal editorial, pero no sustituye contenido. Una composición de página puede presentarlos como lista numerada legible con marcas tipográficas distintas; no hace falta cinco tarjetas. La revisión busca cinco textos completos en el mismo destino y en el prompt editable.
