@@ -109,6 +109,7 @@ export default function Home() {
   const [studioActive, setStudioActive] = useState(false);
   const [savedLandingLink, setSavedLandingLink] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
+  const [saveError, setSaveError] = useState("");
   const [downloadError, setDownloadError] = useState("");
   const [saveLoading, setSaveLoading] = useState(false);
   const [modelChoice, setModelChoice] = useState<ModelChoice>(DEFAULT_MODEL_CHOICE);
@@ -618,6 +619,7 @@ export default function Home() {
     const id = crypto.randomUUID();
     setSaveLoading(true);
     setSaveMessage("");
+    setSaveError("");
     try {
       await saveLanding({
         id,
@@ -635,8 +637,10 @@ export default function Home() {
       });
       setActiveLanding((current) => (current ? { ...current, savedId: id } : current));
       setSaveMessage("Guardada en Biblioteca. Activa Studio para editar secciones.");
+      setSaveError("");
     } catch (error) {
-      setSaveMessage(
+      setSaveMessage("");
+      setSaveError(
         error instanceof Error ? error.message : "No se pudo guardar. Libera espacio e inténtalo de nuevo.",
       );
     } finally {
@@ -660,7 +664,7 @@ export default function Home() {
           </div>
 
           <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
-            <Button type="button" variant="outline" size="sm" onClick={() => setStudioActive((active) => !active)} aria-label={studioActive ? "Volver a ver la landing" : "Activar Studio para editar secciones"}>
+            <Button type="button" variant="outline" size="sm" onClick={() => { if (!studioActive) setSaveMessage(""); setStudioActive(!studioActive); }} aria-label={studioActive ? "Volver a ver la landing" : "Activar Studio para editar secciones"}>
               <span className="hidden sm:inline">{studioActive ? "Ver landing" : "Activar Studio · Editar"}</span>
               <span className="sm:hidden">{studioActive ? "Vista" : "Editar"}</span>
             </Button>
@@ -736,11 +740,12 @@ export default function Home() {
           {downloadError ? <p role="alert" className="px-3 pb-2 text-xs text-destructive">{downloadError}</p> : null}
         </header>
 
-        {saveMessage ? (
+        {saveMessage && !studioActive ? (
           <p role="status" className="absolute left-1/2 top-16 z-30 max-w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 rounded-lg border border-primary/20 bg-card px-4 py-2 text-center text-sm shadow-lg">
             {saveMessage}
           </p>
         ) : null}
+        {saveError ? <p role="alert" className="shrink-0 border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-center text-xs text-destructive">{saveError}</p> : null}
 
         {studioActive ? (
           <SectionEditorWorkspace
