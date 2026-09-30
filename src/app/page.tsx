@@ -107,7 +107,6 @@ export default function Home() {
   const [view, setView] = useState<"create" | "preview">("create");
   const [activeLanding, setActiveLanding] = useState<ActiveLanding | null>(null);
   const [studioActive, setStudioActive] = useState(false);
-  const [savedLandingLink, setSavedLandingLink] = useState<string | null>(null);
   const [saveMessage, setSaveMessage] = useState("");
   const [saveError, setSaveError] = useState("");
   const [downloadError, setDownloadError] = useState("");
@@ -491,18 +490,6 @@ export default function Home() {
     const result = promptResults.find((item) => item.id === resultId);
     if (!result || result.status !== "ready" || !result.prompt.trim()) return;
 
-    setSavedLandingLink(null);
-    let previewWindow: Window | null = null;
-    try {
-      previewWindow = window.open("about:blank", "_blank");
-      if (previewWindow) {
-        previewWindow.opener = null;
-        previewWindow.document.title = "Preparando tu landing";
-        previewWindow.document.body.textContent = "Generando la página. Esta pestaña cambiará a la vista previa cuando esté lista.";
-      }
-    } catch {
-      previewWindow = null;
-    }
     setActiveResultId(resultId);
     setFormError("");
     try {
@@ -529,48 +516,24 @@ export default function Home() {
         throw new Error("El brief cambió y ya no es válido. Revísalo antes de guardar.");
       }
 
-      const id = crypto.randomUUID();
-      await saveLanding({
-        id,
-        title: parsedCode.data.title,
-        brief: parsedBrief.data,
-        techniqueIds: result.techniqueIds,
-        prompt: result.prompt,
-        creativeDirection: storedCreativeDirection(result),
-        modelChoice: result.modelChoice,
-        html: parsedCode.data.html,
-        css: parsedCode.data.css,
-        js: parsedCode.data.js,
-        traceId: landingTraceId,
-        createdAt: new Date().toISOString(),
-      });
-      const landingUrl = `/?landingId=${encodeURIComponent(id)}`;
-      if (previewWindow && !previewWindow.closed) previewWindow.location.replace(landingUrl);
-      else setSavedLandingLink(landingUrl);
       setActiveLanding({
         code: parsedCode.data,
         brief: parsedBrief.data,
         techniqueIds: result.techniqueIds,
         prompt: result.prompt,
         traceId: landingTraceId,
-        savedId: id,
+        savedId: null,
         modelChoice: result.modelChoice,
         designPlan: result.designPlan ?? result.creativeDirection?.designPlan ?? null,
-        creativeDirection: result.creativeDirection ?? null,
+        creativeDirection: storedCreativeDirection(result),
         mediaAssets: [],
       });
-      setSaveMessage("Landing guardada. Activa Studio en la pestaña nueva para editar secciones.");
+      setSaveMessage("Vista previa lista. Puedes volver a tus prompts o abrir Studio cuando quieras.");
+      setSaveError("");
       setStudioActive(false);
-      setView("create");
-      setActiveLanding(null);
-      if (previewWindow) setSavedLandingLink(null);
-      setPromptResults([]);
-      setMethodRuns([]);
-      setActiveResultId(null);
-      setStep(1);
+      setView("preview");
       setFormError("");
     } catch (error) {
-      if (previewWindow && !previewWindow.closed) previewWindow.close();
       setFormError(error instanceof Error ? error.message : "No se pudo construir la landing.");
     } finally {
       setActiveResultId(null);
@@ -751,6 +714,7 @@ export default function Home() {
           <SectionEditorWorkspace
             landingId={activeLanding.savedId}
             code={activeLanding.code}
+            brief={activeLanding.brief}
             modelChoice={activeLanding.modelChoice}
             onApplied={(code) => setActiveLanding((current) => current ? { ...current, code } : current)}
             onOpenMedia={() => { if (mediaMenuRef.current) mediaMenuRef.current.open = true; }}
@@ -780,18 +744,17 @@ export default function Home() {
               Avanza de a una decisión: define el brief, elige cómo trabajar y revisa los prompts antes de construir.
             </p>
           </div>
-          <p className="inline-flex shrink-0 items-center gap-2 self-start rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground sm:self-auto">
-            <span className="font-semibold tabular-nums text-foreground">3</span>
-            pasos hasta tu página
-          </p>
-        </section>
-
-        {savedLandingLink ? (
-          <div role="status" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/[0.04] p-4 text-sm">
-            <p>La landing se guardó. El navegador bloqueó la pestaña nueva; ábrela aquí y activa Studio para editarla.</p>
-            <Link href={savedLandingLink} target="_blank" rel="noreferrer" className="font-semibold text-primary underline underline-offset-4">Abrir landing y activar Studio</Link>
+          <div className="flex shrink-0 flex-wrap items-center gap-2 self-start sm:self-auto">
+            {activeLanding ? <>
+              <Button type="button" variant="outline" size="sm" onClick={() => { setStudioActive(false); setView("preview"); }}>Ver landing</Button>
+              <Button type="button" size="sm" onClick={() => { setStudioActive(true); setView("preview"); }}>Abrir Studio</Button>
+            </> : null}
+            <p className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs text-muted-foreground">
+              <span className="font-semibold tabular-nums text-foreground">3</span>
+              pasos hasta tu página
+            </p>
           </div>
-        ) : null}
+        </section>
 
         <EveModelSelector value={modelChoice} onChange={changeModelChoice} />
 
