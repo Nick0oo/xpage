@@ -31,3 +31,15 @@ Panadería de masa madre: motivo de cuaderno de fermentación, tinta carbón y c
 
 ## Prueba de consistencia
 Simula el sistema en hero, detalle y cierre: cada parte debe parecer la misma identidad y seguir cumpliendo una tarea distinta. Si el motivo exige decoración constante, si el color dificulta lectura o si no puede explicarse su procedencia, simplifica. `designDNA` queda como fuente única; cualquier ajuste se hace allí y se comunica a las demás técnicas.
+## Procedimiento para una semilla útil
+Una semilla es una señal visual breve que induce una estructura original; no es un tema de color ni una referencia para copiar.
+- Extrae una palabra o detalle concreto del brief (por ejemplo, erre, pliegue, órbita, receta, trayecto).
+- Asocia una operación visual que se pueda implementar localmente: repetir, atravesar, desplegar, anotar, recortar o invertir.
+- Asocia el gesto a un elemento que deba leerse: titular, inventario, diagrama, navegación o cierre.
+- Comprueba contraste suficiente y lectura en móvil; si el gesto interfiere con el texto, simplifícalo.
+- Usa una semilla principal y, como máximo, un eco secundario; no mezcles metáforas sin relación.
+- Cambia escala u orientación según la tarea, conservando material, trazo o tratamiento para dar unidad.
+- No generes un blob o un patrón aleatorio por llamarlo semilla.
+- La semilla no sustituye el sistema: color, tipografía, composición y accesibilidad siguen derivados de DesignDNA.
+- Registra su forma visible en contributions.artifact y una regla de uso en designDNA.invariants.
+- Si no se puede explicar su relación con la oferta en una frase sencilla, descártala.

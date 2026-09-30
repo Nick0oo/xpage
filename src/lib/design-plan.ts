@@ -110,6 +110,43 @@ export type LandingSection = z.infer<typeof landingSectionSchema>;
 export type ExplicitContentRequirement = z.infer<typeof explicitContentRequirementSchema>;
 export type MediaSlot = z.infer<typeof mediaSlotSchema>;
 
+const spanishCounts: Record<string, number> = {
+  uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5,
+  seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+};
+const enumerableNounPattern = "trabalenguas?|ejercicios?|recetas?|pasos?|preguntas?|ejemplos?|ideas?|frases?|actividades?|consejos?|historias?|poemas?|adivinanzas?|juegos?|retos?";
+
+/** Extract a concrete enumerable deliverable from the offer as a deterministic floor. */
+export function requestedEnumerableContent(offer: string) {
+  const match = offer.match(new RegExp(`\\b(?:hasta\\s+)?(\\d{1,2}|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\\s+(${enumerableNounPattern})\\b`, "iu"));
+  if (!match) return null;
+  const count = /^\d+$/.test(match[1]) ? Number(match[1]) : spanishCounts[match[1].toLocaleLowerCase("es")];
+  if (!count || count > 30) return null;
+  return { count, noun: match[2].toLocaleLowerCase("es") };
+}
+
+/** Plans must turn a numeric promise in the brief into the complete visible inventory. */
+export function enumerableContentFindings(plan: DesignPlan, offer: string) {
+  const requested = requestedEnumerableContent(offer);
+  if (!requested) return [];
+  const matching = plan.explicitContentRequirements.filter((item) => {
+    return item.statement.toLocaleLowerCase("es").includes(requested.noun);
+  });
+  const total = matching.reduce((sum, item) => sum + item.requiredItems.length, 0);
+  const findings: string[] = [];
+  if (total !== requested.count || matching.length !== 1 || matching[0]?.targetCount !== requested.count) {
+    findings.push(`El brief ofrece ${requested.count} ${requested.noun}; el plan debe contener una lista con targetCount ${requested.count} y exactamente ${requested.count} piezas originales completas (actualmente ${total}).`);
+  }
+  const requirement = matching.length === 1 ? matching[0] : undefined;
+  const section = requirement ? plan.sections.find(({ id }) => id === requirement.sectionId) : undefined;
+  const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es");
+  const missingFromCopy = requirement?.requiredItems.filter((item) => !normalize(section?.copy ?? "").includes(normalize(item))) ?? [];
+  const missingFromPrompt = requirement?.requiredItems.filter((item) => !normalize(plan.prompt).includes(normalize(item))) ?? [];
+  if (missingFromCopy.length) findings.push(`${missingFromCopy.length} piezas no aparecen completas en el copy de la sección asignada.`);
+  if (missingFromPrompt.length) findings.push(`${missingFromPrompt.length} piezas no aparecen completas en el prompt editable.`);
+  return findings;
+}
+
 export function validateTechniqueCoverage(plan: DesignPlan, selectedIds: readonly string[]) {
   const selected = new Set(selectedIds);
   const covered = new Set(plan.contributions.map(({ techniqueId }) => techniqueId));

@@ -31,3 +31,16 @@ Define en `voice` persona gramatical, nivel de formalidad, longitud media y pala
 
 ## Microcopy
 Las etiquetas nombran contenido, las instrucciones explican una acción y los CTA dicen qué pasa después. No uses “Enviar”, “Descubrir más” o “Comenzar” sin destino comprensible. Mantén consistencia de persona y de términos para la oferta en todos los bloques.
+## Procedimiento de edición por bloque
+Para cada sección redacta en este orden: etiqueta de orientación opcional; titular con una idea; cuerpo con una información nueva; lista o ejemplo cuando explique alcance; CTA solo si existe el siguiente paso.
+- Extrae nombres y vocabulario del brief para conservar cómo llama la persona a su oferta.
+- Usa verbos concretos: practicar, comparar, reservar, descargar solo si realmente hay descarga, pedir información solo si existe canal.
+- Define persona gramatical y mantenla en toda la página. No alternes tú, usted, imperativos neutros y nosotros sin motivo.
+- Prefiere palabras cotidianas en español. Si el término técnico es obligatorio, explícalo en su primera aparición.
+- Retira inicios vacíos como «En el mundo actual», «Descubre una nueva manera» y «Lleva tu X al siguiente nivel».
+- Una frase por renglón no es automáticamente legible; combina longitudes y agrupa ideas que pertenecen juntas.
+- Evita adjetivos de resultado («fácil», «rápido», «garantizado», «transformador») sin respaldo.
+- Etiquetas y botones nombran acciones; el cuerpo puede tener personalidad sin volver críptico el siguiente paso.
+- Comprueba que titular y párrafo no repiten la misma promesa. El párrafo debe responder cómo, qué incluye o mostrar una pieza.
+- copyRevisions explica una edición con antes/después y criterio; no inventes revisiones para cumplir un campo.
+- Mantén literalmente requiredItems en el copy final. La puntuación exterior puede adaptarse; la pieza no se resume.

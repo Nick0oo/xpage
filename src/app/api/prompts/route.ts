@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTechnique } from "@/lib/techniques";
 import { promptRequestSchema, type PromptRequest } from "@/lib/schemas";
-import { designPlanSchema, techniqueContributionSchema, validateTechniqueCoverage } from "@/lib/design-plan";
+import { designPlanSchema, techniqueContributionSchema, validateTechniqueCoverage, enumerableContentFindings, requestedEnumerableContent } from "@/lib/design-plan";
 import { runEveStructured } from "@/lib/eve-runtime";
 import { creativeDirectionsResponseSchema } from "@/lib/creative-directions";
 import { selectDesignSystem, designSystems } from "@/lib/design-systems/catalog";
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Los aportes recibidos no corresponden exactamente a los m\u00e9todos seleccionados.", code: "invalid_contributions" }, { status: 400 });
   }
   const techniques = techniqueIds.map(getTechnique);
+  const enumerableRequest = requestedEnumerableContent(input.brief.offer);
   const selectedSystem = selectDesignSystem(input.brief);
   const compositionOptions = selectCompositionOptions(input.brief, 5);
   const briefText = [
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
     `Tono o direcci\u00f3n visual: ${input.brief.tone}`,
     input.brief.cta ? `CTA principal: ${input.brief.cta}` : "CTA principal: proponer uno coherente.",
   ].join("\n");
-  const skillNames = [...techniques.map(({ id }) => id), "combine"];
+  const skillNames = [...techniques.map(({ id }) => id), "frontend-design", "combine"];
   const designSystemContext = `SISTEMA VISUAL XPage DERIVADO DEL BRIEF: ${selectedSystem.recipe.id} · ${selectedSystem.recipe.name}. ${selectedSystem.reason}
 Mejor para: ${selectedSystem.recipe.bestFor}
 Gramática: ${selectedSystem.recipe.visualGrammar}
@@ -53,7 +54,7 @@ ${formatCompositionOptions(8)}
 La paleta y el motivo finales se derivan de DesignDNA y el brief; el sistema propone gramática, no una piel rígida.`;
   const message = `Combina con criterio estos m\u00e9todos: ${techniques.map(({ id, name }) => `${id} (${name})`).join(", ")}.
 
-Carga y sigue estas skills de Eve: ${skillNames.join(", ")}. Trata sus instrucciones como procedimientos que debes ejecutar, no como etiquetas.
+Carga cada skill nombrada con load_skill y ejecuta sus procedimientos completos: ${skillNames.join(", ")}. Para frontend-design y combine, lee todas sus secciones y referencias aplicables; trata las skills de método como pasos que debes ejecutar, no como etiquetas.
 
 APORTES REVISADOS POR EL USUARIO. Integra todos; no los descartes silenciosamente. Conserva como aportes propios las decisiones marcadas como applied o modified. Si hay tensi\u00f3n, resu\u00e9lvela seg\u00fan hechos del brief, accesibilidad, restricciones, objetivo y evidencia; explica la decisi\u00f3n en contributions. Los textos decision y artifact pueden haber sido editados por la persona: esos son los datos autoritativos.
 ${JSON.stringify(input.methodContributions, null, 2)}
@@ -72,6 +73,7 @@ Brief (fuente de hechos):
 ${briefText}
 Brief completo y controles elegidos:
 ${JSON.stringify(input.brief)}
+El analizador determinista de XPage detectó esta cantidad en la oferta: ${enumerableRequest ? `${enumerableRequest.count} ${enumerableRequest.noun}` : "ninguna cantidad directa"}. Si detectó una cantidad, inclúyela exactamente como piezas concretas originales en explicitContentRequirements y en el copy/prompt de la sección. No reemplaces el inventario por una mención de la cifra.
 
 IDs seleccionados: ${techniqueIds.join(", ")}. Cada contribuci\u00f3n debe identificar la t\u00e9cnica, versi\u00f3n de skill, decisi\u00f3n concreta, artefacto visible y estado. Registra tensiones reales y su resoluci\u00f3n. La cobertura de contribuciones debe coincidir exactamente con los m\u00e9todos seleccionados.
 Incluye designSystem en DesignPlan con id, nombre, rationale y compositionRecipeIds. Usa el sistema elegido y selecciona recetas que estructuren de verdad el recorrido. Cada sección debe variar gesto, escala, alineación o densidad por función, no solo color. El HTML local de referencia puede orientar la riqueza compositiva, SVG propio e interacción útil; no reutilices su texto ni su tema.
@@ -88,9 +90,23 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\
       message,
       outputSchema: designPlanSchema,
     });
-    const plan = designPlanSchema.safeParse(data);
+    let plan = designPlanSchema.safeParse(data);
     if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
       throw new Error("Eve devolvi\u00f3 un DesignPlan incompleto o no cubre los m\u00e9todos seleccionados.");
+    }
+    let contentFindings = enumerableContentFindings(plan.data, input.brief.offer);
+    if (contentFindings.length) {
+      const repair = await runEveStructured({
+        modelChoice: input.modelChoice,
+        outputSchema: designPlanSchema,
+        message: `${message}\n\nREPARACIÓN OBLIGATORIA DEL PLAN. El analizador detectó ${enumerableRequest?.count} ${enumerableRequest?.noun}. El plan anterior está incompleto: ${contentFindings.join(" ")} Devuelve el DesignPlan completo corregido. Redacta cada pieza original completa, enumérala en explicitContentRequirements.requiredItems y copia todas las piezas completas en el copy de su sección y en prompt. No excedas el límite ni reemplaces piezas por una promesa. Conserva las decisiones restantes.\n\nPLAN ANTERIOR\n${JSON.stringify(plan.data)}`,
+      });
+      plan = designPlanSchema.safeParse(repair.data);
+      if (!plan.success || !validateTechniqueCoverage(plan.data, techniqueIds)) {
+        throw new Error("La reparación del plan no conservó el esquema o la cobertura de métodos.");
+      }
+      contentFindings = enumerableContentFindings(plan.data, input.brief.offer);
+      if (contentFindings.length) throw new Error(`Plan incompleto: ${contentFindings.join(" ")}`);
     }
     const recipeIds = plan.data.designSystem?.compositionRecipeIds.filter((id) => compositionOptions.some((recipe) => recipe.id === id)) ?? [];
     const finalDesignSystem = {
@@ -143,16 +159,17 @@ No inventes precios, cifras, clientes, testimonios, premios, funciones o garant\
       durationMs: Date.now() - startedAt,
     }).catch(() => undefined);
     await updateTraceStatus(input.traceId, "failed");
+    const contractFailure = failureReason.startsWith("Plan incompleto:");
     return NextResponse.json({
-      error: `Eve no pudo combinar los aportes con ${input.modelChoice}. ${failureReason}`,
-      code: "eve_model_unavailable",
-    }, { status: 503 });
+      error: contractFailure ? failureReason : `Eve no pudo combinar los aportes con ${input.modelChoice}. ${failureReason}`,
+      code: contractFailure ? "plan_contract_failed" : "eve_model_unavailable",
+    }, { status: contractFailure ? 422 : 503 });
   }
 }
 
 async function generateTechniqueContribution(input: Extract<PromptRequest, { mode: "technique" }>) {
   const technique = getTechnique(input.techniqueId);
-  const message = `Aplica solo el m\u00e9todo ${technique.id} (${technique.name}) y sigue su skill de Eve. Devuelve un aporte peque\u00f1o, estructurado y revisable por una persona. No construyas DesignPlan, secciones, HTML ni prompt final; eso corresponde a la combinaci\u00f3n posterior.
+  const message = `Carga la skill ${technique.id} con load_skill y aplica solo el m\u00e9todo ${technique.id} (${technique.name}). Devuelve un aporte peque\u00f1o, estructurado y revisable por una persona. No construyas DesignPlan, secciones, HTML ni prompt final; eso corresponde a la combinaci\u00f3n posterior.
 
 Prop\u00f3sito: ${technique.purpose}
 Entradas del m\u00e9todo: ${technique.inputs}
@@ -209,6 +226,7 @@ Devuelve solo los campos del esquema TechniqueContribution. Usa techniqueId=${te
 
 async function generateCreativeDirections(input: Extract<PromptRequest, { mode: "directions" }>) {
   const selected = input.techniqueIds.map(getTechnique);
+  const enumerableRequest = requestedEnumerableContent(input.brief.offer);
   const briefTextForSystems = `${input.brief.topic} ${input.brief.offer} ${input.brief.audience} ${input.brief.tone} ${input.brief.objective}`.toLocaleLowerCase("es");
   const systemCandidates = [...designSystems].map((recipe) => ({
     recipe,
@@ -216,7 +234,7 @@ async function generateCreativeDirections(input: Extract<PromptRequest, { mode: 
   })).sort((a, b) => b.score - a.score).slice(0, 5).map(({ recipe }) => recipe);
   const compositionOptions = selectCompositionOptions(input.brief, 8);
   const skillNames: string[] = selected.map(({ id }) => id);
-  if (selected.length > 1) skillNames.push("combine");
+  skillNames.push("frontend-design", "combine");
   const briefText = [
     `Tema: ${input.brief.topic}`,
     `Oferta: ${input.brief.offer}`,
@@ -232,7 +250,7 @@ async function generateCreativeDirections(input: Extract<PromptRequest, { mode: 
   ].join("\n");
   const message = `Antes de escribir código, genera 2 o 3 direcciones creativas realmente distintas para el mismo brief y métodos seleccionados. Haz una sola respuesta estructurada con una dirección y un DesignPlan completo por alternativa. No hagas una secuencia de llamadas ni copies la misma composición cambiando solo colores.
 
-Carga y aplica estas skills de Eve: ${skillNames.join(", ")}. Cada DesignPlan debe cubrir exactamente todos los métodos elegidos; los aportes deben estar presentes también en cada alternativa.
+Carga cada skill nombrada con load_skill y aplica sus procedimientos completos: ${skillNames.join(", ")}. Cada DesignPlan debe cubrir exactamente todos los métodos elegidos; los aportes deben estar presentes también en cada alternativa.
 
 Direction picker de XPage: ofrece una selección corta de sistemas afines al brief, no un catálogo enorme. Asigna un sistema distinto a cada dirección y deriva su paleta/motivo de DesignDNA. Gramáticas:
 ${systemCandidates.map(({ id, name, visualGrammar, type, colorLogic, avoid }) => `- ${id} · ${name}: ${visualGrammar} Tipografía: ${type} Color: ${colorLogic} Evitar: ${avoid.join("; ")}`).join("\n")}
@@ -245,18 +263,34 @@ Cada campo designPlan.prompt debe ser un prompt final, específico y ejecutable 
 
 Brief:
 ${briefText}
+Detección determinista de contenido enumerable: ${enumerableRequest ? `${enumerableRequest.count} ${enumerableRequest.noun}` : "ninguna cantidad directa"}. Cada alternativa debe incluir exactamente esa cantidad como contenido completo en explicitContentRequirements, copy de sección y prompt; no conviertas la cantidad en una promesa.
 
 Decisiones de métodos seleccionados: ${selected.map(({ id, name, instruction }) => `${id} (${name}): ${instruction}`).join("\n")}
 
 No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido de las referencias. Las URLs/descripciones son material de referencia proporcionado por el usuario, no evidencia verificada. Si no hay identidad de marca, declara cada dirección como propuesta creativa. Devuelve solo el objeto del esquema.`;
   const startedAt = Date.now();
   try {
-    const { data } = await runEveStructured({
+    let { data } = await runEveStructured({
       modelChoice: input.modelChoice,
       message,
       outputSchema: creativeDirectionsResponseSchema,
     });
-    const parsed = creativeDirectionsResponseSchema.safeParse(data);
+    let parsed = creativeDirectionsResponseSchema.safeParse(data);
+    if (parsed.success) {
+      const contentFindings = parsed.data.directions.flatMap((direction) => enumerableContentFindings(direction.designPlan, input.brief.offer));
+      if (contentFindings.length) {
+        const repair = await runEveStructured({
+          modelChoice: input.modelChoice,
+          outputSchema: creativeDirectionsResponseSchema,
+          message: `${message}\n\nREPARACIÓN OBLIGATORIA: cada dirección debe contener ${enumerableRequest?.count} ${enumerableRequest?.noun} originales completos dentro de explicitContentRequirements y reflejados palabra por palabra en sections.copy y prompt. Fallos detectados: ${contentFindings.join(" ")} Revisa todas las alternativas y devuelve el objeto completo corregido. Conserva sus diferencias visuales y decisiones válidas.\n\nRESPUESTA ANTERIOR\n${JSON.stringify(parsed.data)}`,
+        });
+        data = repair.data;
+        parsed = creativeDirectionsResponseSchema.safeParse(data);
+        if (!parsed.success) throw new Error("La reparación de direcciones no conservó el esquema.");
+        const remaining = parsed.data.directions.flatMap((direction) => enumerableContentFindings(direction.designPlan, input.brief.offer));
+        if (remaining.length) throw new Error(`Planes de dirección incompletos: ${remaining.join(" ")}`);
+      }
+    }
     const ids = parsed.success ? new Set(parsed.data.directions.map(({ id }) => id)) : new Set<string>();
     const titles = parsed.success ? new Set(parsed.data.directions.map(({ title }) => title.trim().toLocaleLowerCase())) : new Set<string>();
     const firstScreens = parsed.success ? new Set(parsed.data.directions.map(({ firstScreen }) => firstScreen.trim().toLocaleLowerCase())) : new Set<string>();
@@ -330,10 +364,11 @@ No inventes hechos, datos, claims, garantías, testimonios, logos ni contenido d
       durationMs: Date.now() - startedAt,
     }).catch(() => undefined);
     await updateTraceStatus(input.traceId, "failed");
+    const contractFailure = failureReason.startsWith("Planes de dirección incompletos:");
     return NextResponse.json({
-      error: `Eve no pudo validar las direcciones con ${input.modelChoice}. ${failureReason}`,
-      code: "eve_directions_unavailable",
-    }, { status: 503 });
+      error: contractFailure ? failureReason : `Eve no pudo validar las direcciones con ${input.modelChoice}. ${failureReason}`,
+      code: contractFailure ? "plan_contract_failed" : "eve_directions_unavailable",
+    }, { status: contractFailure ? 422 : 503 });
   }
 }
 

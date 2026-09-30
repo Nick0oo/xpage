@@ -27,3 +27,15 @@ El movimiento nunca es la única forma de transmitir instrucciones: incluye text
 
 ## Control de movimiento
 El ajuste del brief limita el ritmo visual; `prefers-reduced-motion` elimina movimiento no esencial y deja visible la misma información. No infieras compatibilidad de proveedor, licencia, URL o archivo. Especifica solamente búsqueda futura de clips gratuitos si la instrucción de producto lo requiere; cualquier resultado exige revisar derechos por separado.
+## Ficha de movimiento y reproducción
+Propón video solo si el orden de acciones comunica algo que una imagen fija no conserva. Indica secuencia, duración aproximada, punto de inicio y fin, y relación con la sección; no conviertas la especificación en una afirmación de que el video existe.
+- Prefiere reproducción iniciada por la persona. Nunca dependas de autoplay con sonido.
+- Define una portada estática que identifique tema y propósito; no dejes un rectángulo negro al no haber activo.
+- Describe controles operables, subtítulos o transcripción cuando el contenido hablado aporte información.
+- La versión estática para prefers-reduced-motion debe comunicar el mismo resultado y conservar el contenido del brief.
+- Usa el slot solo en la sección que explica el proceso; evita repetir el mismo video en varias partes.
+- No ocultes ejemplos, pasos o inventario dentro de un reproductor.
+- Si el proceso se puede mostrar con tres cuadros SVG o una secuencia numerada, prefiere ese formato local y accesible.
+- Especifica encuadre, ritmo y paleta en relación con DesignDNA; no uses adjetivos abstractos como cinematográfico como instrucciones suficientes.
+- Incluye el data-xpage-slot correspondiente y texto alternativo/contexto equivalente alrededor del medio.
+- Registra qué parte visualiza el medio y qué alternativa estática mantiene la comprensión.

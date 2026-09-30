@@ -31,3 +31,17 @@ Mapea la intención a la secuencia: captar → explicar → concretar → resolv
 
 ## Auditoría del recorrido
 Lee solo los titulares en orden: deben formar un argumento entendible. Lee solo CTAs: deben indicar un paso real sin competir. Luego revisa que las secciones respondan motivaciones/objeciones sin repetirse. Registra necesidades como hipótesis, no como evidencia de conversión.
+## Desarrollo de la hipótesis a una página
+No trates «ambicioso» como copy grandilocuente. La ambición consiste en que la página cumpla toda la tarea que el brief sí define, aunque el resultado sea una pequeña oferta o una sola práctica.
+- Por cada motivación u objeción, anota la frase del brief que la sugiere y la parte de la página que respondería.
+- La audiencia se deriva de palabras explícitas como estudiante, equipo o visitante. Si solo se infiere, déjala como hipótesis.
+- Convierte la hipótesis en contenido útil. «Puede querer practicar sin vergüenza» sugiere una práctica que se puede probar, no un testimonio de un usuario.
+- Asigna cada sección una pregunta que responde; cambia el orden solo cuando el contenido siguiente dependa de una explicación previa.
+- Separa lo que la oferta permite hacer de el resultado garantizado. Lo primero puede venir del brief; lo segundo requiere evidencia.
+- Para cantidades, inspecciona el inventario antes de escribir el CTA. Si el brief ofrece cinco ejercicios, el plan contiene las cinco piezas completas.
+- Los titulares forman una progresión cuando se leen solos. Si dicen lo mismo con sinónimos, cambia tarea o elimina uno.
+- Un CTA aparece después de mostrar suficiente contexto para tomar la acción; repítelo solo cuando la longitud lo justifique.
+- Una objeción sin evidencia no se resuelve inventando una FAQ. Se omite o se formula como pregunta abierta.
+- No llenes secciones para alcanzar una longitud arbitraria: desarrolla lo que el brief da y corta promesas de contenido futuro.
+- Anota en contributions.artifact la secuencia concreta y en qué secciones aterriza.
+- Relee de abajo hacia arriba para confirmar que el cierre depende del recorrido y no introduce una afirmación nueva.

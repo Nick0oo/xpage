@@ -27,3 +27,17 @@ El texto alternativo explica la información del medio dentro de la sección. Si
 
 ## Prueba de necesidad
 Pregunta qué se vuelve más claro con el recurso y si el motivo ya se comunica mejor mediante SVG/CSS, tabla o copy. Evita pedir una imagen por cada sección. Alterna escala y tratamiento solo cuando sostenga el sistema visual; no afirmes disponibilidad del archivo, autor, procedencia o permiso.
+## Ficha completa de recurso
+Antes de proponer un slot, contesta:
+1. Qué información concreta comunica que el texto no comunica igual.
+2. En qué sección aparece y qué afirmación respalda.
+3. Qué sujeto realiza qué acción en qué entorno.
+4. Qué distancia, ángulo, escala y espacio negativo permiten leer la escena.
+5. Qué luz, contraste y temperatura conectan con DesignDNA.
+6. Qué proporción, recorte y texto alternativo corresponden al destino.
+Si no hay una respuesta útil a las preguntas 1 y 2, retira el slot y resuelve con copy, diagrama o SVG CSS.
+Un slot es una especificación, no un activo descargado. No atribuyas autoría, origen, licencia ni disponibilidad sin fuente.
+Evita texto generado incrustado, logotipos imaginarios, marcas de agua y pequeños detalles que competirían con el texto real de la página.
+Un solo recurso focal puede sostener el hero y un esquema secundario puede explicar el proceso; no añadas una imagen por sección como decoración.
+El texto alternativo nombra información visual relevante y no empieza con «imagen de» salvo que ese dato importe.
+Describe colores como dirección ligada a roles visuales, pero no conviertas la imagen en una segunda paleta de marca.

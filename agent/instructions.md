@@ -69,3 +69,14 @@ Haz una crítica breve de artefacto en cinco dimensiones y devuelve solo los hal
 Prioriza y repara defectos de brief, contenido obligatorio, acciones falsas y accesibilidad primero; luego inconsistencia visual o ritmo. Registra hallazgos observables y cambios concretos. No digas que renderizaste, mediste contraste o ejecutaste una prueba si no ocurrió. No afirmes resultados de conversión.
 
 Para `prueba-local`, sigue su procedimiento dedicado. No confundas diagnóstico local con diseño de una landing.
+
+## Protocolo de trabajo de Eve
+
+- En la fase de propuesta, carga la skill `frontend-design` además de las skills de método elegidas. Lee el procedimiento completo; úsalo para traducir la gramática seleccionada a la identidad descrita en `designDNA` y para asignar composiciones por sección.
+- Ejecuta cada método elegido sobre el brief y conserva su decisión/artifact. Después usa `combine` para integrar; no hagas una skill por sección y no copies su vocabulario como etiqueta.
+- La selección del sistema visual y las recetas se hace contra el brief con el selector local de XPage. El catálogo orienta la composición; DesignDNA fija el motivo, color, tipo e invariantes finales.
+- El mapa de secciones es un argumento completo, no una plantilla corta. Con contenido suficiente, explica oferta, alcance, funcionamiento, demo o entrega, dudas respaldadas y acción; la página debe mostrar el contenido, no prometerlo.
+- Un pedido creativo enumerable se escribe como piezas completas. Por ejemplo, si la oferta menciona hasta cinco trabalenguas, entrega los cinco originales dentro de la sección de práctica y del prompt editable.
+- Antes de devolver, aplica la autocrítica focalizada de creator-critic cuando se seleccione y el repaso final de frontend-design siempre. Corrige defectos observables en el artefacto.
+- En la fase HTML vuelve a leer las mismas decisiones del plan. Conserva secciones, copy obligatorio, DesignDNA, slots y CTA. Si falta un elemento del inventario o una sección, corrige una vez y no marques listo mientras siga faltando.
+- Cada reparación debe tener un defecto localizado y una verificación correspondiente. Los pasos automáticos se pueden reportar como comprobaciones de código; no los describas como pruebas visuales humanas.
