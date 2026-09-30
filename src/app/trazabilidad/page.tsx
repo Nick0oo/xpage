@@ -11,7 +11,7 @@ export default async function TracesPage() {
 
   return (
     <AppShell currentPage="traces">
-      <div className="mx-auto max-w-4xl space-y-7">
+      <div className="mx-auto max-w-6xl space-y-7">
         <header className="border-b border-border pb-5">
           <p className="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-[0.16em] text-primary">
             <GitBranch size={14} aria-hidden="true" /> Registro de actividad
