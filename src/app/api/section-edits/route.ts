@@ -15,6 +15,12 @@ export async function GET(request: Request) {
   const current = landing.sectionRevision > 0
     ? await prisma.sectionRevision.findUnique({ where: { savedLandingId_revision: { savedLandingId: id, revision: landing.sectionRevision } }, select: { parentRevisionId: true, summary: true, html: true, css: true, js: true } })
     : null;
+  const revisions = await prisma.sectionRevision.findMany({
+    where: { savedLandingId: id },
+    orderBy: { revision: "desc" },
+    take: 20,
+    select: { id: true, revision: true, parentRevisionId: true, sectionId: true, summary: true, createdAt: true },
+  });
   const codeMatchesRevision = Boolean(current && landingFingerprint({ ...landing, sectionRevision: landing.sectionRevision }) === landingFingerprint({ ...current, sectionRevision: landing.sectionRevision }));
   return NextResponse.json({
     revision: landing.sectionRevision,
@@ -22,5 +28,6 @@ export async function GET(request: Request) {
     undoRevisionId: current?.summary.startsWith("Deshacer:") || !codeMatchesRevision ? null : current?.parentRevisionId ?? null,
     undoUnavailable: Boolean(current && !codeMatchesRevision),
     currentSummary: current?.summary ?? null,
+    revisions,
   });
 }

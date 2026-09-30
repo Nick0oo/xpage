@@ -19,13 +19,13 @@ export async function POST(request: Request) {
   const currentRevision = landing.sectionRevision > 0
     ? await prisma.sectionRevision.findUnique({ where: { savedLandingId_revision: { savedLandingId: landing.id, revision: landing.sectionRevision } } })
     : null;
-  if (!currentRevision || currentRevision.parentRevisionId !== input.targetRevisionId || landingFingerprint(landing) !== landingFingerprint({ ...currentRevision, sectionRevision: landing.sectionRevision })) {
+  if (!currentRevision || landingFingerprint(landing) !== landingFingerprint({ ...currentRevision, sectionRevision: landing.sectionRevision })) {
     return NextResponse.json({ error: "La landing cambió después de esta revisión. Actualiza para evitar perder cambios o medios." }, { status: 409, headers: { "X-XPage-Code": "stale_revision" } });
   }
   const target = await prisma.sectionRevision.findFirst({ where: { id: input.targetRevisionId, savedLandingId: landing.id } });
   if (!target) return NextResponse.json({ error: "No encontramos la versión anterior." }, { status: 404 });
   const revisionId = randomUUID();
-  const summary = `Deshacer: recuperar revisión ${target.revision}`;
+  const summary = `Restaurar revisión ${target.revision}`;
   try {
     const revision = await prisma.$transaction(async (tx) => {
       const update = await tx.savedLanding.updateMany({
