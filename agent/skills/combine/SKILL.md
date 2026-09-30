@@ -1,100 +1,93 @@
 ---
 name: combine
-description: Integra métodos revisados en un plan, sistema visual y recorrido únicos; resuelve tensiones, preserva contenido y deja decisiones auditables.
+description: Run after individual technique contributions to produce one complete, editable and executable landing plan. Reconcile user-edited decisions, preserve every brief requirement, define section composition and interactions, and write the full build prompt. Use whenever XPage combines methods, even if only one method is selected.
 ---
-# Combinación de métodos · v1.3.0
+# Combinar métodos · v2.0.0
 
-## Misión
-Transforma aportes independientes en una landing coherente. Los métodos son lentes con responsabilidades distintas; no son secciones separadas ni fragmentos que se pegan en secuencia. La entrega es una propuesta única que sirve al brief, puede inspeccionarse y se puede convertir en HTML completo.
+## Propósito
 
-## Secuencia de trabajo
-1. **Ancla en evidencia.** Extrae oferta, destinatario, acción, voz, contenido expreso, restricciones, fuentes y datos ausentes. Marca hipótesis como tales. No conviertas referencias no verificadas en hechos.
-2. **Lee los aportes como decisiones.** Conserva los cambios del usuario, incluso si no coinciden con tu preferencia. Para cada método registra aplicación, estado y artefacto observable. No inventes una contribución ausente ni declares aplicado algo que no afecta el plan.
-3. **Resuelve tensiones.** Compara las decisiones que compiten por el mismo elemento (jerarquía, densidad, imagen/movimiento, tono, detalle). Aplica la precedencia: hechos y accesibilidad → restricciones expresas → identidad disponible → DesignDNA → propósito de sección → preferencias estilísticas. Explica la resolución en la contribución relevante.
-4. **Fija DesignDNA una sola vez.** Define un motivo derivado del brief, paleta con roles, tipografía local, composición e invariantes verificables. No hagas que cada método imponga su paleta o una identidad separada.
-5. **Elige gramática y composición.** Usa el sistema visual curado que XPage obtuvo del brief como punto de partida. Registra `designSystem` y entre dos y cuatro `compositionRecipeIds` que sí aparecen en el recorrido. Adapta o descarta la receta si el brief, la marca o la accesibilidad lo exigen. Cada sección debe resolver una tarea y variar su composición por una razón observable.
-6. **Diseña el recorrido.** Ordena interés, explicación de valor, alcance, demostración/ejemplo, dudas pertinentes y acción. Con material suficiente usa normalmente 5–7 secciones sustantivas; reduce cuando la oferta sea simple, nunca por plantilla. No agregues secciones de relleno.
-7. **Escribe contenido que exista.** Transforma cada entrega enumerable expresa en `explicitContentRequirements` con destino y lista completa. Incluye las mismas piezas completas en `sections[].copy` y en `prompt`. Mencionar el número sin las piezas no cumple.
-8. **Pasa la crítica focalizada.** Audita brief/evidencia, jerarquía/composición, contenido, accesibilidad/responsive, y coherencia/IDs. Registra de dos a cinco hallazgos solo si aplican, y cambia el plan para resolverlos. Si creator-critic está seleccionado, usa sus campos específicos. No digas que renderizaste o mediste algo sin hacerlo.
-9. **Comprueba el contrato.** Recorre secciones, medios, requisitos, claims, CTA, anclas, contribuciones e invariantes. El prompt editable y plan final deben contar la misma página.
+Integra las decisiones editables de Eve y de la persona en una sola dirección, DesignPlan y prompt de construcción. Las skills son procedimientos especializados; no son secciones de página ni bloques para concatenar. La entrega debe servir a visitantes reales, conservar la procedencia y poder implementarse en el HTML autónomo de XPage.
 
-## Precedencia y decisiones
-- Los hechos del brief y los controles de accesibilidad siempre ganan frente a preferencias estéticas.
-- `designDNA` es la única fuente de decisiones de marca. `designSystem` aporta un vocabulario compositivo, no una paleta paralela.
-- Métodos compatibles se refuerzan. Ante conflicto real, nombra ambas necesidades y explica cuál cede, cómo se adapta y dónde queda reflejada.
-- Un método `modified` incluye modificación y razón. `omitted` incluye razón verificable. `applied` nombra el elemento afectado.
-- La cantidad de secciones sigue a la cantidad de valor que hay que explicar. No equipares minimalismo con poca información.
+## Material de referencia
 
-## Artefactos obligatorios
-- Una contribución por método seleccionado, con la versión real del `SKILL.md`, `status`, `decision`, `artifact`, y tensiones/resoluciones pertinentes.
-- `designDNA`, `designSystem`, `sections`, `mediaSlots`, `explicitContentRequirements`, `claims`, `negativeConstraints`, `discardedElements`, `voice` y `prompt` coherentes entre sí.
-- `creatorCritic.proposal`, hallazgos concretos y revisión cuando ese método esté seleccionado.
-- IDs únicos y estables; cada requisito y slot apunta a una sección existente.
-- El prompt HTML incluye `data-xpage-section` por cada `<section>` y `data-xpage-slot` por recurso. Todo CTA conduce a URL proporcionada o ancla real.
+Carga el `SKILL.md` completo de cada método seleccionado con `load_skill`; `frontend-design` y esta skill también son obligatorias en la fase de plan. Las referencias no vienen incluidas automáticamente al cargar una skill. Si existe `read_seed_reference`, consulta `frontend-design`, `web-prototype-skill`, `web-prototype-layouts`, `web-prototype-checklist` y `system-prompt-excerpts` en una llamada durante diseño; añade `xpage-adaptation` si seed-strings está seleccionado. El bundle es fuente OpenDesign copiada con atribución y licencia bajo `seed-strings/references/open-design/`, no un runtime/tool/plugin. Totality Festival es ejemplo de identidad contextual; no lo conviertas en tema base. Usa hallazgos concretos de las fuentes y deja fuera lo incompatible con brief, sistema explícito, XPage o esta tarea. Si la tool falla/no está disponible, continúa con instrucciones locales y no afirmes que leíste referencias.
 
-## Inventario enumerable
-Para un pedido de cinco ejercicios, redacta cinco ejercicios originales y útiles dentro de la sección indicada. Para “hasta cinco”, puede ofrecerse el máximo solo si las cinco piezas son apropiadas; no transformes el máximo en una cantidad contractual distinta sin necesidad. Nunca excedas límites explícitos. Distingue ejemplos creados para explicar la oferta de pruebas o resultados reales.
+## Precedencia y lectura del material
 
-## Revisión de copy y claims
-Cada titular introduce una idea nueva. El párrafo explica alcance o ejemplo, no parafrasea el titular. El CTA expresa la acción y tiene destino. Todo claim cita brief/fuente y estado (`brief-backed`, `hypothesis`, `unsupported`); elimina lo unsupported. No uses urgencia, cifras o testimonios inventados.
+1. Hechos, cantidades, restricciones y revisiones expresas de la persona.
+2. Accesibilidad y contratos verificables de XPage.
+3. Identidad/sistema visual que la persona eligió, si existe en el catálogo local y no contradice hechos o acceso.
+4. DesignDNA derivada de brief y gramática del sistema seleccionado.
+5. Propósito narrativo, lectura y composición de cada sección.
+6. Preferencias estéticas de las skills.
 
-## Medios
-Los slots son especificaciones futuras, no recursos existentes. Se vinculan por ID a su sección. Propón imagen cuando haga más comprensible una idea; video solo cuando la secuencia comunique algo que una imagen fija no puede. Define encuadre, acción, luz/paleta, proporción y alt; para video, póster, silencio, controles y alternativa de movimiento reducido.
+Trata lo que se escribió/editó en `decision` y `artifact` como autoridad. No los regeneres para reconciliarlos. Aplica cada aporte `applied`/`modified` en una ubicación comprobable; `modified` explica adaptación y tensión; `omitted` incluye razón concreta. Conserva exactamente una `TechniqueContribution` por ID seleccionado y usa la versión real del frontmatter de cada skill.
 
-## Ejemplo de tensión
-Image-assets pide mostrar una acción y negative-constraints exige poco movimiento: conserva una imagen secuencial o clip con controles si aporta comprensión, sin autoplay, con póster y estado estático completo para `prefers-reduced-motion`. Explica la decisión y conserva el contenido legible sin el medio.
+## Flujo de integración
 
-## No hacer
-No concatenar métodos, crear una sección por método, repetir una fila de tarjetas, inferir investigación, presentar intuición CRO como medición, resumir entregables pedidos, omitir conflictos, inventar acciones, ni exponer razonamiento privado.
+### 1. Fija hechos, desconocidos y público
 
-## Propagación de Cadenas semilla
+Extrae oferta, destinatario, acción/URL, voz, identidad, referencias no verificadas, requisitos enumerables, restricciones y datos faltantes. Conserva hechos con fuente/estado. Motivaciones, objeciones o dudas no provistas son hipótesis internas vinculadas a una señal, no resultados de investigación.
 
-Cuando `seed-strings` está seleccionado, lee su skill completa y conserva el dossier de `contributions[].artifact` como una decisión revisable. La cadena es una señal efímera de exploración; no es un motivo, paleta, hecho de marca ni instrucción codificada. Usa `selected_route` y `route_effect` del artefacto editado por la persona como autoridad. No regeneres, sustituyas ni interpretes de nuevo la semilla durante la combinación.
+Separa claramente contenido para equipo (hipótesis, desconocidos, advertencias de diseño, razones para omitir un claim, decisiones de sistema y notas de crítica) del copy para visitantes. Las notas internas se guardan en contributions, `claims`, `negativeConstraints`, `discardedElements` o traza. No expongas en la landing frases del proceso como “el brief no concreta…”, “por definir”, “no representamos una función”, “no se presentan ejemplos” o un catálogo de lo que no sabes. El copy debe explicar directamente la oferta, el alcance respaldado, cómo se usa y qué acción real seguir. Si hace falta conocer una condición para decidir, solicítala internamente; publícala solo cuando sea un dato confirmado de la oferta.
 
-Propaga la dirección elegida por cuatro puntos: (1) resume su traducción a `designDNA` como propuesta derivada del brief; (2) aplícala al propósito, orden y gesto compositivo de las secciones y a las recetas realmente usadas; (3) describe los mismos recursos concretos e invariantes en el campo `prompt` editable; (4) preserva la ficha de semilla en la contribución final. Si el usuario edita la ruta, el motivo o una regla del prompt, refleja esa edición y ajusta sus dependencias. Si una restricción confirmada limita la ruta, registra `modified` y explica la adaptación. No afirmes distribución estadística, determinismo ni resultados experimentales para esta adaptación de diseño.
+No inventes hechos de negocio, precios, métricas, funciones, clientes, testimonios, garantías, credenciales, urgencia ni disponibilidad. El contenido creativo que la persona pide (artículo de muestra, guía, ejercicio, receta, trabalenguas) sí se escribe completo y original; márcalo “muestra”/“ejercicio” cuando sea útil para no confundirlo con un historial real. “No inventar hechos” nunca es motivo para omitir una pieza creativa solicitada.
 
-Comprueba al cierre que la ruta sigue siendo visible en el plan y el prompt, que se reconoce en varias secciones con funciones distintas y que no desplaza copy obligatorio, marca aprobada, CTA, accesibilidad ni contenido completo. En la construcción HTML, las reglas del prompt son el contrato: aplícalas en composición y recursos CSS/SVG locales sin volver a sortear una ruta.
+### 2. Reconcilia aportes sin perder su efecto
 
-## Procedimiento de integración, de principio a fin
+Agrupa decisiones por lo que cambian: narrativa, lenguaje, estructura, identidad, contenido inventariable, medios, exclusiones, accesibilidad y crítica. Refuerza decisiones compatibles; resuelve solo tensiones reales. Nombra la necesidad en conflicto, el control que manda, la resolución y dónde queda implementada. Conserva cada decisión del usuario y comprueba si una edición afecta dependencias (p.ej. ruta semilla → designDNA/secciones/prompt).
 
-### A. Fijar el contrato de la página
-Convierte el brief a una ficha de una línea por dato: oferta; destinatario; acción; voz; restricciones; fuente; estado del dato. Conserva el texto original del brief junto con esa ficha. Una preferencia visual no autoriza modificar oferta, público, cantidad, nombre ni destino de un CTA.
+### 3. Selecciona una gramática y fija DesignDNA
 
-Lee las skills indicadas y sus referencias por completo antes de integrar. Cada método elegido entrega una decisión y una pieza de evidencia que se pueda localizar en la página. Los métodos no elegidos no aparecen como contribuciones inventadas. Si el brief presenta una cantidad para un producto creativo, cuenta la lista concreta antes de avanzar: un rótulo «5 ejemplos» no es cinco ejemplos.
+Usa el `designSystemId` explícito si la persona eligió uno del catálogo local. Mantén ID/nombre estables; explica adaptación a la marca y solo descártalo por conflicto factual, de acceso o restricción explícita. Sin elección manual, usa selector/ranking XPage sobre el brief y explica una selección razonada. No reemplaces una elección por `service-concierge`, una composición beige/crema, neón o un split/hero genérico por comodidad. El sistema es gramática compositiva, no paleta o skin; `designDNA` es la identidad final única: motivo, roles de color, tipografía disponible localmente, composición e invariantes observables. Deriva propuestas de la oferta, no del estilo de referencia.
 
-### B. Resolver una sola identidad visual
-Aplica `frontend-design` como procedimiento común, aunque los métodos seleccionados sean solo de copy o medios. Primero selecciona la gramática disponible más afín al brief; luego transforma esa gramática a través de `designDNA`. Escribe la identidad como reglas implementables, por ejemplo: «tinta verde profunda para lectura, marfil para fondo, rojo coral solo para acción; titulares serif compactos; notas numeradas al margen; imágenes como recortes de taller». Evita reglas vacías como «moderno y elegante».
+Selecciona 2–4 `compositionRecipeIds` reales del catálogo; asigna los que ayudan y justifica cada uno. Varía composición por tarea: puede usar entrada tipográfica, explicación ancha, secuencia, demostración, índice, diagrama, comparación sustentada, FAQ necesaria o cierre. Un nombre de receta no prueba uso: debe aparecer como estructura identificable. Evita repetir el mismo hero, cards, split o Bento sin necesidad. No fuerces diversidad decorativa si el brief requiere un patrón estable.
 
-El motivo no es una ilustración aislada. Debe poder reaparecer de formas adecuadas a cada tarea: una línea puede convertirse en eje del recorrido, subrayado editorial y señal de foco; una letra puede servir de gráfico central, marcador de práctica y detalle del cierre. Si marca, tema o accesibilidad chocan con la receta, anota qué regla se adaptó y qué conserva su función.
+### 4. Arma el recorrido con información utilizable
 
-### C. Diseñar el argumento antes del estilo
-Escribe primero el orden de secciones con esta estructura de decisión (no es una plantilla fija):
+Define primera pantalla (oferta, para quién, siguiente paso), alcance/funcionamiento, demo o piezas pedidas, dudas relevantes si hay respaldo y cierre. Para cada sección decide:
 
-| Fase posible | Pregunta que contesta | Evidencia apropiada |
-|---|---|---|
-| Orientación | ¿Qué es y para quién? | La oferta y el destinatario del brief |
-| Comprensión | ¿Cómo es o qué incluye? | Alcance y pasos conocidos |
-| Demostración | ¿Qué puedo inspeccionar o practicar? | Entregables concretos, muestras originales pedidas, demo respaldada |
-| Decisión | ¿Qué duda real queda? | Datos del brief; nunca objeciones o testimonios fabricados |
-| Acción | ¿Cuál es el siguiente paso? | URL dada o ancla a contenido que existe |
+| Campo | Qué escribir |
+|---|---|
+| `id` / `role` | Identificador único y función clara |
+| `purpose` | Pregunta/tarea específica de la persona |
+| `headline` / `copy` | Idea nueva y explicación pública útil, sin notas de producción |
+| `composition` | Estructura, escala, ancho, alineación y relación con secciones vecinas |
+| `interaction` | Control exacto, estados, activación y fallback; “estática” si no hace falta |
+| `mediaSlotIds` | Slots referidos existentes; vacío si el medio no aporta |
 
-Cada sección apunta a una sola pregunta principal. Una sola sección puede resolver más de una pregunta cuando el contenido es breve. Amplía el recorrido cuando haya contenido real para desarrollar; no añadas FAQ, métricas, logos ni testimonios por inercia. Asigna a cada sección un verbo de composición diferente: abrir, explicar, comparar, practicar, orientar, cerrar. Dos secciones contiguas no deben compartir el mismo gesto visual sin una razón.
+Con material suficiente, suele servir un recorrido de 5–7 secciones sustantivas; usa menos si la oferta es simple o el brief está corto. Desarrolla hechos y ejemplos disponibles en vez de rellenar con disclaimers, FAQ/tarjetas genéricas o bloques sobre falta de información. Cada título introduce una idea y el cuerpo agrega dato, alcance, proceso o contenido.
 
-### D. Asignar a los métodos su parte
-Agrupa los aportes por la variable que cambian, no por el orden en que llegaron: narrativa, lenguaje, visual, medios, simplificación y crítica. Combina sus decisiones compatibles en el mismo componente. Ejemplo: copy humano pide un titular concreto, prompts ambiciosos pide hacer clara la audiencia y el sistema editorial usa ese titular como apertura asimétrica; eso es una solución integrada, no tres piezas apiladas.
+### 5. Preserva requisitos completos
 
-Al resolver una tensión, nombra la necesidad y el control que manda. Ejemplo: «video-assets sugiere movimiento para mostrar el proceso; negative-constraints fija movimiento reducido. Se conserva la explicación estática y se deja el video como recurso manual opcional». Registra estado, decisión, artefacto visible y una adaptación verificable en el aporte correcto.
+Por cada entrega enumerada, crea una fila de `explicitContentRequirements` con ID único, enunciado, sección destino, `targetCount` exacto y cada pieza completa en `requiredItems`. Copia esas mismas piezas completas en el `copy` de esa sección y en el prompt editable. Cuenta entradas; un titular que dice “cinco ideas” no son cinco ideas. Respeta el máximo solicitado, no supongas inventario, y conserva la revisión de la persona palabra por palabra.
 
-### E. Preservar y localizar los entregables
-Por cada requisito enumerable, registra una sola fila de inventario con ID estable, frase del requisito, sección destino, cantidad exacta y texto completo de cada pieza. Coloca el mismo contenido en el copy de esa sección y el prompt de construcción. Antes de acabar, cuenta las piezas y coteja la lista palabra por palabra. Si una pieza aparece en dos secciones por razones de lectura, sigue contando como un solo elemento del inventario.
+### 6. Define medios que puedan buscarse y seleccionarse
 
-Los ejemplos originales solicitados sí son contenido a producir. Nombres, cifras, hechos, testimonios, beneficios y garantías del producto siguen necesitando fuente. No uses la regla de «no inventar hechos» para evadir un ejercicio, un trabalenguas, una receta o una pregunta que el usuario sí pidió redactar.
+Cada slot pertenece a una sección y describe propósito, sujeto/acción/contexto, encuadre, luz/movimiento, proporción, alt y fallback local. Para imagen agrega 1–3 `searchQueries` y `selectionCriteria`: son valores para una búsqueda real futura, no resultados. La búsqueda de imagen usa los proveedores/APIs existentes; no inventes candidatos, autor, crédito o licencia. Video solo se ofrece si la secuencia explica mejor que una imagen fija: es una consulta al banco gratuito de stock configurado, no generación de video ni promesa de disponibilidad. Incluye secuencia, duración, query, criterios, poster, controles manuales/sin audio y alternativa estática/reduced-motion. El HTML previo a selección no lleva URL vacía ni placeholder hueco. El usuario puede cambiar consultas/criterios.
 
-### F. Pasar la crítica como una reparación
-Haz una única revisión focalizada después de completar el plan. Por cada hallazgo conserva cuatro datos: elemento localizado; criterio incumplido; efecto observable; reparación aplicada. Examina primero entregables ausentes, claims sin fuente, sección omitida o CTA falso. Después examina semántica, foco, lectura móvil, movimiento reducido, jerarquía y repetición visual. No reescribas el plan entero por preferencia estética; modifica el menor número de decisiones que resuelve defectos reales.
+### 7. Pasa la crítica y escribe el prompt final
 
-### G. Cierre de consistencia
-El plan y su prompt deben describir la misma página. Confirma IDs de secciones únicos; requisitos y slots con sección existente; cada receta seleccionada aplicada por lo menos una vez; aportes cubiertos exactamente; claims enlazados a su fuente; títulos que cuentan un argumento al leerse en secuencia; CTA que lleva a un destino real; y cada pieza del inventario completa en su sección. Solo entonces considera el plan listo para transformarse en HTML.
+Revisa claims, IDs, URLs/anclas, media/section IDs, copy público, inventario, jerarquía, interacción, semántica, foco, movimiento reducido, contenido sin JS, referencias y restricciones negativas. Registra solo defectos reales y corrige el plan. No afirmes contraste medido, render, comportamiento probado o resultado de conversión si no se realizó.
 
-## Caso de referencia: practicar la letra «r»
-Para un brief que ofrece hasta cinco trabalenguas, el mapa debe reservar una sección de práctica que realmente los contenga. El plan entrega cinco trabalenguas completos, distintos entre sí y en español natural; `targetCount` es cinco. DesignDNA puede convertir el ritmo fonético de la erre en señal editorial, pero no sustituye contenido. Una composición de página puede presentarlos como lista numerada legible con marcas tipográficas distintas; no hace falta cinco tarjetas. La revisión busca cinco textos completos en el mismo destino y en el prompt editable.
+El campo `prompt` es el contrato ejecutable en español para construir la página completa; no lo reduzcas a resumen, briefing general o estética. Debe contener, en orden legible:
+
+1. **Tarea y límites:** crear standalone body HTML, CSS y JS vanilla, sin dependencias remotas, con copy público directo y sin notas internas/placeholder.
+2. **Brief y fuente:** oferta, audiencia, acción/destino, voz, marca/hechos respaldados; referencias del usuario marcadas como no verificadas y límites factuales.
+3. **Dirección implementable:** sistema elegido e ID, racional/adaptaciones, DesignDNA con tokens y valores por rol, stack tipográfico, motivo/recursos, anchos/ritmo e invariantes.
+4. **Plano completo de secciones:** por cada ID/orden, tarea, título, copy final, inventario textual completo, composición concreta, contenido y transición; no borrar secciones al construir.
+5. **Interacciones:** cada control, etiqueta/estado/evento/teclado/foco y fallback sin JS; define si no hay interacción y evita controles falsos.
+6. **Slots de medios:** sección/slot ID, tipo, propósito, descripción, query(s), criterios seleccionables, alt, proporción, poster/reduced-motion y alternativa gráfica local. Distingue especificación de activo encontrado.
+7. **Pruebas de entrega:** lista explícita de secciones e items requeridos que deben estar completos en DOM; clases/URLs del CTA; `data-xpage-section` en cada `<section>` y `data-xpage-slot` en cada slot.
+8. **Acceso y responsive:** HTML semántico, foco, teclado, contraste intencional, móvil, `prefers-reduced-motion`, contenido entendible sin JS.
+9. **Chequeo al finalizar:** cotejar salida con inventario/IDs/CTA; reparar omisiones localizadas una vez; reportar solo comprobaciones realmente hechas.
+
+Incluye detalles específicos, copy final y decisiones de composición, no solo adjetivos. El prompt y plan deben describir la misma página. Si el prompt llega al límite de 12.000 caracteres, comprime repeticiones manteniendo las nueve partes y todo el inventario. No muevas metadatos de decisión a los párrafos que verá el visitante.
+
+## Ejemplo de integración
+
+Brief: taller ofrece cuatro ejercicios originales y una URL de inscripción. Ambitious-prompts propone el paso de orientación a práctica; human-copy pide verbos concretos; subtractive-design quita una segunda promesa repetida; negative-constraints descarta reseñas no provistas; creator-critic nota que faltaba un ejercicio. Resultado: una sección de práctica con cuatro piezas completas, marca “ejercicios de muestra”, diseño de secuencia numerada, una nota interna sobre testimonios omitidos y un único enlace de inscripción con URL real. La landing no anuncia “no se proporcionaron reseñas”.
+
+## Cierre de consistencia
+
+Antes de entregar confirma una vez: cobertura exacta de métodos; versión real; sistema explícito respetado o razón de adaptación; contribuciones editadas preservadas; IDs estables; cada requisito y slot asignado; inventario completo en plan/copy/prompt; claims sustentados; contenido público sin notas internas; interacciones/CTA reales; prompt implementable y coherente. Este cierre es inspección de artefactos, no evaluación masiva ni prueba visual.
